@@ -1,53 +1,63 @@
-// commands/gpt4o.js
+const fs = require('fs');
+const path = require('path');
 
-const axios = require('axios');
+const userDataPath = path.join(__dirname, '../data/users.json');
+let users = require(userDataPath);
+
+function saveUserData() {
+  fs.writeFileSync(userDataPath, JSON.stringify(users, null, 2));
+}
 
 module.exports = {
-  name: 'gpt4o',
-  description: 'ใช้ GPT-4o เพื่อสร้างข้อความและภาพตามคำขอของคุณ',
-  /**
-   * execute ฟังก์ชันที่ถูกเรียกเมื่อคำสั่ง /gpt4o ถูกใช้
-   * @param {TelegramBot} bot - instance ของ TelegramBot
-   * @param {TelegramBot.Message} msg - ข้อความที่ได้รับจากผู้ใช้
-   */
-  execute: async (bot, msg) => {
-    const chatId = msg.chat.id;
-    const args = msg.text.split(' ').slice(1); // แยกคำสั่งและ arguments
+  name: 'ธนาคาร',
+  description: 'จัดการระบบธนาคาร (ฝาก/ถอน)',
+  execute(bot) {
+    bot.onText(/\/ธนาคาร (ฝาก|ถอน) (\d+)/, (msg, match) => {
+      const chatId = msg.chat.id;
+      const userId = msg.from.id;
+      const action = match[1]; // ฝาก หรือ ถอน
+      const amount = parseInt(match[2], 10);
 
-    if (args.length === 0) {
-      bot.sendMessage(chatId, '❗️ กรุณาระบุคำถามหรือคำขอของคุณหลังคำสั่ง /gpt4o');
-      return;
-    }
+      if (!users[userId]) {
+        // หากยังไม่ได้สมัครสมาชิก
+        bot.sendMessage(chatId, "❌ คุณยังไม่ได้สมัครธนาคาร กรุณาใช้คำสั่ง /สมัคร เพื่อเริ่มต้น");
+        return;
+      }
 
-    const query = args.join(' ');
-
-    // ส่งข้อความกำลังประมวลผล
-    bot.sendMessage(chatId, '⏳ กำลังประมวลผลคำขอของคุณ...');
-
-    try {
-      // ส่งคำขอไปยัง API
-      const response = await axios.get('https://kaiz-apis.gleeze.com/api/gpt-4o-pro', {
-        params: {
-          q: query,
-          uid: 1, // คุณสามารถปรับเปลี่ยน UID ตามต้องการ
-          imageUrl: '' // ถ้าต้องการสร้างภาพ สามารถเพิ่ม URL หรือพารามิเตอร์อื่นๆ
+      if (action === 'ฝาก') {
+        // การฝากเงิน
+        if (users[userId].cash >= amount) {
+          users[userId].cash -= amount;
+          users[userId].balance += amount;
+          saveUserData();
+          bot.sendMessage(chatId, `✅ ฝากเงิน ${amount} บาทสำเร็จ!\n💵 เงินสด: ${users[userId].cash} บาท\n🏦 ในธนาคาร: ${users[userId].balance} บาท`);
+        } else {
+          bot.sendMessage(chatId, "❌ เงินสดในมือไม่เพียงพอ!");
         }
-      });
-
-      // สมมติว่า API ส่งกลับข้อมูลในรูปแบบ { text: '...', imageUrl: '...' }
-      const data = response.data;
-
-      if (data.text) {
-        bot.sendMessage(chatId, data.text);
+      } else if (action === 'ถอน') {
+        // การถอนเงิน
+        if (users[userId].balance >= amount) {
+          users[userId].balance -= amount;
+          users[userId].cash += amount;
+          saveUserData();
+          bot.sendMessage(chatId, `✅ ถอนเงิน ${amount} บาทสำเร็จ!\n💵 เงินสด: ${users[userId].cash} บาท\n🏦 ในธนาคาร: ${users[userId].balance} บาท`);
+        } else {
+          bot.sendMessage(chatId, "❌ เงินในธนาคารไม่เพียงพอ!");
+        }
       }
+    });
 
-      if (data.imageUrl) {
-        bot.sendPhoto(chatId, data.imageUrl, { caption: '🖼️ นี่คือภาพที่สร้างขึ้นตามคำขอของคุณ!' });
+    bot.onText(/\/สมัคร/, (msg) => {
+      const chatId = msg.chat.id;
+      const userId = msg.from.id;
+
+      if (!users[userId]) {
+        users[userId] = { cash: 500, balance: 1000 }; // เงินสดเริ่มต้น: 500 บาท, ในธนาคาร: 1000 บาท
+        saveUserData();
+        bot.sendMessage(chatId, "✅ สมัครธนาคารสำเร็จ!\n💵 เงินสด: 500 บาท\n🏦 ในธนาคาร: 1000 บาท");
+      } else {
+        bot.sendMessage(chatId, "✅ คุณเป็นสมาชิกธนาคารอยู่แล้ว!");
       }
-
-    } catch (error) {
-      console.error('⚠️ เกิดข้อผิดพลาดในการเรียกใช้ API:', error);
-      bot.sendMessage(chatId, '⚠️ เกิดข้อผิดพลาดในการประมวลผลคำขอของคุณ กรุณาลองใหม่อีกครั้งในภายหลัง');
-    }
-  }
+    });
+  },
 };
