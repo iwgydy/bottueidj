@@ -1,0 +1,16 @@
+{
+  "name": "my-telegram-bot",
+  "version": "1.0.0",
+  "description": "Telegram bot (separated commands)",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "node-telegram-bot-api": "^0.61.0",
+    "yt-search": "^2.9.0",
+    "@distube/ytdl-core": "^4.11.2",
+    "fs-extra": "^10.1.0",
+    "path": "^0.12.7"
+  }
+}
