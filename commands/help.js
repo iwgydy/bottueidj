@@ -1,29 +1,24 @@
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 module.exports = (bot) => {
-  bot.onText(/\/ดูคำสั่งทั้งหมด/, (msg) => {
+  bot.onText(/\/help/, (msg) => {
     const chatId = msg.chat.id;
 
-    try {
-      // อ่านรายชื่อไฟล์ในโฟลเดอร์ commands
-      const commandsPath = path.join(__dirname);
-      const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
+    // อ่านไฟล์ในโฟลเดอร์ commands
+    const commandsPath = path.join(__dirname);
+    const commandFiles = fs
+      .readdirSync(commandsPath)
+      .filter((file) => file.endsWith(".js"));
 
-      // สร้างข้อความคำสั่งทั้งหมด
-      let commandList = "📋 รายชื่อคำสั่งทั้งหมด:\n\n";
-      for (const file of commandFiles) {
-        const command = require(path.join(commandsPath, file));
-        if (command.config && command.config.name) {
-          commandList += `• /${command.config.name} - ${command.config.description || "ไม่มีคำอธิบาย"}\n`;
-        }
-      }
+    // สร้างข้อความแสดงคำสั่งทั้งหมด
+    let helpMessage = "📖 **คำสั่งทั้งหมดที่สามารถใช้งานได้:**\n\n";
+    commandFiles.forEach((file) => {
+      const commandName = file.replace(".js", "");
+      helpMessage += `• /${commandName}\n`;
+    });
 
-      // ส่งข้อความกลับไปให้ผู้ใช้
-      bot.sendMessage(chatId, commandList.trim());
-    } catch (error) {
-      console.error("เกิดข้อผิดพลาดในการดึงคำสั่ง:", error.message);
-      bot.sendMessage(chatId, "❗ ไม่สามารถดึงรายชื่อคำสั่งได้ในขณะนี้");
-    }
+    // ส่งข้อความคำสั่งทั้งหมดให้ผู้ใช้
+    bot.sendMessage(chatId, helpMessage, { parse_mode: "Markdown" });
   });
 };
