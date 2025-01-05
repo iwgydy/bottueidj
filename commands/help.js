@@ -1,24 +1,22 @@
-const fs = require("fs");
-const path = require("path");
+// commands/viewCommands.js
 
-module.exports = (bot) => {
-  bot.onText(/\/help/, (msg) => {
-    const chatId = msg.chat.id;
+module.exports = {
+  name: 'ดูคำสั่งทั้งหมด',
+  description: 'แสดงรายการคำสั่งทั้งหมดที่มีอยู่ในบอท',
+  execute: (bot) => {
+    bot.onText(/^\/ดูคำสั่งทั้งหมด(?:@\w+)?$/, (msg) => {
+      const chatId = msg.chat.id;
+      if (bot.commands.size === 0) {
+        bot.sendMessage(chatId, "⚠️ ยังไม่มีคำสั่งใด ๆ ที่ถูกเพิ่มเข้าไปในบอท");
+        return;
+      }
 
-    // อ่านไฟล์ในโฟลเดอร์ commands
-    const commandsPath = path.join(__dirname);
-    const commandFiles = fs
-      .readdirSync(commandsPath)
-      .filter((file) => file.endsWith(".js"));
+      let response = "📜 **รายการคำสั่งทั้งหมด:**\n\n";
+      bot.commands.forEach((description, command) => {
+        response += `• *${command}*: ${description}\n`;
+      });
 
-    // สร้างข้อความแสดงคำสั่งทั้งหมด
-    let helpMessage = "📖 **คำสั่งทั้งหมดที่สามารถใช้งานได้:**\n\n";
-    commandFiles.forEach((file) => {
-      const commandName = file.replace(".js", "");
-      helpMessage += `• /${commandName}\n`;
+      bot.sendMessage(chatId, response, { parse_mode: 'Markdown' });
     });
-
-    // ส่งข้อความคำสั่งทั้งหมดให้ผู้ใช้
-    bot.sendMessage(chatId, helpMessage, { parse_mode: "Markdown" });
-  });
+  }
 };
