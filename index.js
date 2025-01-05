@@ -8,7 +8,7 @@ const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 
 // 1) ใส่ Token ของบอท Telegram
-const token = 'YOUR_TELEGRAM_BOT_TOKEN';
+const token = '7929038707:AAHZk78OcCN0Kdjs6mjAIV9DM0Qh-7iEHhs';
 
 // 2) สร้าง instance ของบอท (ตั้งค่า polling ให้บอทฟังข้อความ)
 const bot = new TelegramBot(token, { polling: true });
