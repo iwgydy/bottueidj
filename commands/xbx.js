@@ -28,7 +28,7 @@ function saveUserLogin(logData) {
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'สร้างโค้ด V2Ray พร้อมแก้ไขข้อผิดพลาดตัวแปรซ้ำ',
+  description: 'สร้างโค้ด V2Ray พร้อมแก้ไขปัญหาตัวแปรซ้ำ',
   execute(bot) {
     let userSteps = {};
 
@@ -80,12 +80,12 @@ module.exports = {
           break;
 
         case 'waitingForID':
-          const clientId = parseInt(text, 10);
-          if (isNaN(clientId) || clientId <= 0) {
+          const clientUniqueId = parseInt(text, 10);
+          if (isNaN(clientUniqueId) || clientUniqueId <= 0) {
             bot.sendMessage(chatId, "❌ กรุณาใส่ ID เป็นตัวเลขที่มากกว่า 0:");
             return;
           }
-          userSteps[userId].id = clientId;
+          userSteps[userId].id = clientUniqueId;
           bot.sendMessage(chatId, "กรุณาตั้งชื่อโค้ดของคุณ:");
           userSteps[userId].step = 'waitingForName';
           break;
@@ -115,7 +115,7 @@ module.exports = {
           }
           userSteps[userId].days = days;
 
-          const { login, id: clientId, name, gb } = userSteps[userId];
+          const { login, id: clientUniqueId, name, gb } = userSteps[userId];
           const uuid = uuidv4();
           const expiryTime = Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
 
@@ -127,7 +127,7 @@ module.exports = {
               'Content-Type': 'application/json',
             },
             data: {
-              id: clientId,
+              id: clientUniqueId,
               settings: JSON.stringify({
                 clients: [
                   {
