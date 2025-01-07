@@ -32,7 +32,7 @@ function saveUserLogin(logData) {
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'สร้างโค้ด V2Ray ด้วย API',
+  description: 'สร้างโค้ด V2Ray ด้วย API และเพิ่ม /login อัตโนมัติ',
   execute(bot) {
     let waitingForURL = {};       // เก็บสถานะรอ URL
     let waitingForUsername = {}; // เก็บสถานะรอชื่อผู้ใช้
@@ -44,7 +44,7 @@ module.exports = {
       const userId = msg.from.id;
 
       // ขอ URL API
-      bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **URL API** (ตัวอย่าง: http://localhost:2053/login):");
+      bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **URL API** (ตัวอย่าง: http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd):");
       waitingForURL[userId] = true;
     });
 
@@ -73,9 +73,12 @@ module.exports = {
         loginInfo[userId].password = text; // เก็บรหัสผ่าน
         const { url, username, password } = loginInfo[userId];
 
+        // เพิ่ม `/login` ให้ URL
+        const loginURL = `${url}/login`;
+
         // ตรวจสอบข้อมูลผ่าน API
         bot.sendMessage(chatId, "🔄 กำลังตรวจสอบข้อมูล...");
-        axios.post(url, { username, password })
+        axios.post(loginURL, { username, password })
           .then(response => {
             const data = response.data;
 
