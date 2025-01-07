@@ -1,51 +1,47 @@
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'ล็อกอินและสร้างโค้ด V2Ray',
+  description: 'ล็อกอินและส่งข้อมูลโค้ด V2Ray',
   execute(bot) {
     bot.onText(/\/สร้างโค้ด/, async (msg) => {
       const chatId = msg.chat.id;
 
+      // URL สำหรับล็อกอินและส่งข้อมูล
       const loginUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login";
       const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient";
 
-      const username = "WYEXPRkCKL";
-      const password = "nfEpAlava1";
-      const id = 2;
+      // ข้อมูลล็อกอิน
+      const username = "WYEXPRkCKL"; // ชื่อผู้ใช้
+      const password = "nfEpAlava1"; // รหัสผ่าน
 
       bot.sendMessage(chatId, "🔄 กำลังล็อกอิน...");
 
       try {
+        // ล็อกอิน
         const loginResponse = await axios.post(loginUrl, { username, password });
         if (!loginResponse.data.success) {
           bot.sendMessage(chatId, `❌ ล็อกอินไม่สำเร็จ: ${loginResponse.data.msg}`);
           return;
         }
 
-        bot.sendMessage(chatId, "✅ ล็อกอินสำเร็จ! กำลังสร้างโค้ด V2Ray...");
+        bot.sendMessage(chatId, "✅ ล็อกอินสำเร็จ! กำลังส่งข้อมูล...");
 
-        const email = `user-${Math.random().toString(36).substring(2, 10)}@example.com`;
-        const subId = uuidv4();
-        const clientId = uuidv4();
-        const expiryTime = Math.floor(Date.now() / 1000) + 60 * 60; // อายุ 1 ชั่วโมง
-        const totalGB = 1000; // ลดค่าเพื่อทดสอบ
-
+        // JSON ที่จะส่ง
         const requestData = {
-          id: id,
+          id: 2,
           settings: JSON.stringify({
             clients: [
               {
-                id: clientId,
+                id: "bbfad557-28f2-47e5-9f3d-e3c7f532fbda",
                 flow: "",
-                email: email,
+                email: "dp1plmlt8",
                 limitIp: 0,
-                totalGB: totalGB,
-                expiryTime: expiryTime,
+                totalGB: 0,
+                expiryTime: 0,
                 enable: true,
                 tgId: "",
-                subId: subId,
+                subId: "2rv0gb458kbfl532",
                 reset: 0,
               },
             ],
@@ -55,6 +51,7 @@ module.exports = {
         console.log("Sending request to API...");
         console.log("Request Data:", requestData);
 
+        // ส่งคำขอ
         const createResponse = await axios.post(apiUrl, requestData, {
           headers: {
             Accept: "application/json",
@@ -65,12 +62,9 @@ module.exports = {
         const createData = createResponse.data;
 
         if (createData.success) {
-          bot.sendMessage(
-            chatId,
-            `✅ โค้ดสร้างสำเร็จ!\n\n📜 รายละเอียดโค้ด:\n- Client ID: ${clientId}\n- Email: ${email}\n- Sub ID: ${subId}\n\n📩 ข้อความจากเซิร์ฟเวอร์: ${createData.msg}`
-          );
+          bot.sendMessage(chatId, `✅ การส่งข้อมูลสำเร็จ!`);
         } else {
-          bot.sendMessage(chatId, `❌ การสร้างโค้ดล้มเหลว: ${createData.msg || "Unknown Error"}`);
+          bot.sendMessage(chatId, `❌ การส่งข้อมูลล้มเหลว: ${createData.msg || "Unknown Error"}`);
         }
       } catch (error) {
         if (error.response) {
