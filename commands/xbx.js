@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid'); // ใช้สำหรับแรนดอม UUID
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
   name: 'สร้างโค้ด',
@@ -8,20 +8,16 @@ module.exports = {
     bot.onText(/\/สร้างโค้ด/, async (msg) => {
       const chatId = msg.chat.id;
 
-      // URL การล็อกอินและ API สร้างโค้ด
       const loginUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login";
       const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient";
 
-      // ข้อมูลล็อกอิน
-      const username = "WYEXPRkCKL"; // ชื่อผู้ใช้
-      const password = "nfEpAlava1"; // รหัสผ่าน
-      const id = 2; // ID ที่เซิร์ฟเวอร์กำหนด (ห้ามเปลี่ยน)
+      const username = "WYEXPRkCKL";
+      const password = "nfEpAlava1";
+      const id = 2;
 
-      // แจ้งผู้ใช้ว่ากำลังล็อกอิน
       bot.sendMessage(chatId, "🔄 กำลังล็อกอิน...");
 
       try {
-        // ส่งคำขอล็อกอิน
         const loginResponse = await axios.post(loginUrl, { username, password });
         if (!loginResponse.data.success) {
           bot.sendMessage(chatId, `❌ ล็อกอินไม่สำเร็จ: ${loginResponse.data.msg}`);
@@ -30,11 +26,11 @@ module.exports = {
 
         bot.sendMessage(chatId, "✅ ล็อกอินสำเร็จ! กำลังสร้างโค้ด V2Ray...");
 
-        // ข้อมูลสำหรับการสร้างโค้ด
-        const email = `user-${Math.random().toString(36).substring(2, 10)}@example.com`; // สุ่ม email
-        const subId = uuidv4(); // แรนดอม subId
-        const clientId = uuidv4(); // แรนดอม client ID
-        const expiryTime = Math.floor(Date.now() / 1000) + 24 * 60 * 60; // อายุ 1 วัน (วินาที)
+        const email = `user-${Math.random().toString(36).substring(2, 10)}@example.com`;
+        const subId = uuidv4();
+        const clientId = uuidv4();
+        const expiryTime = Math.floor(Date.now() / 1000) + 60 * 60; // อายุ 1 ชั่วโมง
+        const totalGB = 1000; // ลดค่าเพื่อทดสอบ
 
         const requestData = {
           id: id,
@@ -44,9 +40,9 @@ module.exports = {
                 id: clientId,
                 flow: "",
                 email: email,
-                limitIp: 0, // ไม่จำกัดจำนวน IP
-                totalGB: 99999, // ไม่จำกัด GB
-                expiryTime: expiryTime, // หมดอายุใน 1 วัน
+                limitIp: 0,
+                totalGB: totalGB,
+                expiryTime: expiryTime,
                 enable: true,
                 tgId: "",
                 subId: subId,
@@ -59,7 +55,6 @@ module.exports = {
         console.log("Sending request to API...");
         console.log("Request Data:", requestData);
 
-        // ส่งคำขอสร้างโค้ด
         const createResponse = await axios.post(apiUrl, requestData, {
           headers: {
             Accept: "application/json",
