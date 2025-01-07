@@ -6,7 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const loginsFilePath = path.join(__dirname, '../data/looks.json');
 
 /**
- * ดึงข้อมูลล็อกอินผู้ใช้จากไฟล์ looks.json
+ * ดึงข้อมูลล็อกอินของผู้ใช้
  */
 function getUserLogin(userId) {
   if (fs.existsSync(loginsFilePath)) {
@@ -17,7 +17,7 @@ function getUserLogin(userId) {
 }
 
 /**
- * บันทึกข้อมูลล็อกอินลงไฟล์ looks.json
+ * บันทึกข้อมูลล็อกอิน
  */
 function saveUserLogin(logData) {
   let logins = [];
@@ -25,86 +25,61 @@ function saveUserLogin(logData) {
     logins = JSON.parse(fs.readFileSync(loginsFilePath, 'utf8'));
   }
 
-  // ลบข้อมูลล็อกอินเก่าของผู้ใช้ (ถ้ามี)
+  // ลบข้อมูลเก่าถ้าซ้ำ
   logins = logins.filter((login) => login.userId !== logData.userId);
 
-  // เพิ่มข้อมูลล็อกอินใหม่
   logins.push(logData);
-
-  // เขียนกลับลงไฟล์
   fs.writeFileSync(loginsFilePath, JSON.stringify(logins, null, 2));
 }
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'สร้างโค้ด V2Ray พร้อมหลีกเลี่ยงปัญหาตัวแปรซ้ำ',
+  description: 'สร้างโค้ด V2Ray พร้อมล็อกอินอัตโนมัติ',
   execute(bot) {
-    /**
-     * userSteps เก็บสถานะการสร้างโค้ดของผู้ใช้แต่ละคน
-     * โครงสร้าง:
-     * {
-     *   [userId]: {
-     *     step: 'waitingForXX',
-     *     login: { url, username, password },
-     *     inboundId: Number,
-     *     name: String,
-     *     gb: Number,
-     *     days: Number,
-     *     ...
-     *   }
-     * }
-     */
     let userSteps = {};
 
-    // เมื่อพิมพ์ /สร้างโค้ด
     bot.onText(/\/สร้างโค้ด/, (msg) => {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
 
-      // ตรวจสอบว่าผู้ใช้เคยบันทึกข้อมูลล็อกอินไว้หรือไม่
       const savedLogin = getUserLogin(userId);
 
       if (!savedLogin) {
-        // ถ้าไม่เคยบันทึก ให้ขอ URL ก่อน
-        bot.sendMessage(chatId, "กรุณากรอก **URL API** (ตัวอย่าง: http://example.com):");
+        // ไม่เคยมีข้อมูล ให้ขอ URL, username, password ก่อน
+        bot.sendMessage(chatId, "กรุณากรอก **URL API** (ตัวอย่าง: http://xxxxx.xyz:2053/xxxxxx):");
         userSteps[userId] = { step: 'waitingForURL' };
       } else {
-        // ถ้าเคยบันทึกแล้ว ขอ ID เลย
-        bot.sendMessage(chatId, "กรุณาใส่ ID (ตัวอย่าง: 5):");
-        userSteps[userId] = { step: 'waitingForInboundId', login: savedLogin };
+        // มีข้อมูลอยู่แล้ว ขอ Inbound ID ต่อเลย
+        bot.sendMessage(chatId, "กรุณาใส่ Inbound ID (ตัวอย่าง: 5):");
+        userSteps[userId] = {
+          step: 'waitingForInboundId',
+          login: savedLogin, // ใช้ข้อมูลล็อกอินที่เคยบันทึก
+        };
       }
     });
 
-    // ทุกข้อความที่ผู้ใช้ส่งมา จะตรวจสอบตาม step
     bot.on('message', (msg) => {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
       const text = msg.text.trim();
 
-      // ถ้าไม่มี step อะไรให้ทำ ก็ข้าม
       if (!userSteps[userId]) return;
 
       const step = userSteps[userId].step;
 
       switch (step) {
-        // ---------------------------
-        // 1) รับ URL API
         case 'waitingForURL':
           userSteps[userId].login = { url: text };
-          bot.sendMessage(chatId, "กรุณากรอก **ชื่อผู้ใช้**:");
+          bot.sendMessage(chatId, "กรุณากรอก **username**:");
           userSteps[userId].step = 'waitingForUsername';
           break;
 
-        // ---------------------------
-        // 2) รับชื่อผู้ใช้
         case 'waitingForUsername':
           userSteps[userId].login.username = text;
-          bot.sendMessage(chatId, "กรุณากรอก **รหัสผ่าน**:");
+          bot.sendMessage(chatId, "กรุณากรอก **password**:");
           userSteps[userId].step = 'waitingForPassword';
           break;
 
-        // ---------------------------
-        // 3) รับรหัสผ่าน
         case 'waitingForPassword':
           userSteps[userId].login.password = text;
 
@@ -114,70 +89,69 @@ module.exports = {
             ...userSteps[userId].login,
           });
 
-          // จากนั้นให้ถาม ID
-          bot.sendMessage(chatId, "กรุณาใส่ ID (ตัวอย่าง: 5):");
+          // ขอ inbound ID ต่อเลย
+          bot.sendMessage(chatId, "กรุณาใส่ Inbound ID (ตัวอย่าง: 5):");
           userSteps[userId].step = 'waitingForInboundId';
           break;
 
-        // ---------------------------
-        // 4) รับ ID (InboundId)
-        case 'waitingForInboundId':
+        case 'waitingForInboundId': {
           const inboundId = parseInt(text, 10);
           if (isNaN(inboundId) || inboundId <= 0) {
-            bot.sendMessage(chatId, "❌ กรุณาใส่ ID เป็นตัวเลขที่มากกว่า 0:");
+            bot.sendMessage(chatId, "❌ กรุณาระบุ Inbound ID เป็นตัวเลขมากกว่า 0:");
             return;
           }
           userSteps[userId].inboundId = inboundId;
-          bot.sendMessage(chatId, "กรุณาตั้งชื่อโค้ดของคุณ:");
+          bot.sendMessage(chatId, "กรุณาตั้งชื่อโค้ด (email) ของคุณ:");
           userSteps[userId].step = 'waitingForName';
           break;
+        }
 
-        // ---------------------------
-        // 5) รับชื่อโค้ด
         case 'waitingForName':
           userSteps[userId].name = text;
-          bot.sendMessage(chatId, "กรุณากำหนด GB (ตัวอย่าง: 50):");
+          bot.sendMessage(chatId, "กำหนด GB (ตัวอย่าง: 50):");
           userSteps[userId].step = 'waitingForGB';
           break;
 
-        // ---------------------------
-        // 6) รับ GB
-        case 'waitingForGB':
+        case 'waitingForGB': {
           const gb = parseInt(text, 10);
           if (isNaN(gb) || gb <= 0) {
-            bot.sendMessage(chatId, "❌ กรุณากำหนด GB เป็นตัวเลขที่มากกว่า 0:");
+            bot.sendMessage(chatId, "❌ กรุณาระบุ GB เป็นตัวเลขมากกว่า 0:");
             return;
           }
           userSteps[userId].gb = gb;
-          bot.sendMessage(chatId, "กรุณากำหนดจำนวนวันหมดอายุ (ตัวอย่าง: 30):");
+          bot.sendMessage(chatId, "กำหนดวันหมดอายุ (ตัวอย่าง: 30):");
           userSteps[userId].step = 'waitingForDays';
           break;
+        }
 
-        // ---------------------------
-        // 7) รับจำนวนวันหมดอายุ
-        case 'waitingForDays':
+        case 'waitingForDays': {
           const days = parseInt(text, 10);
           if (isNaN(days) || days <= 0) {
-            bot.sendMessage(chatId, "❌ กรุณากำหนดจำนวนวันหมดอายุเป็นตัวเลขที่มากกว่า 0:");
+            bot.sendMessage(chatId, "❌ กรุณาระบุวันหมดอายุเป็นตัวเลขมากกว่า 0:");
             return;
           }
           userSteps[userId].days = days;
 
-          // สร้าง UUID และคำนวณเวลาหมดอายุ
-          const { login, inboundId: finalInboundId, name, gb: finalGB } = userSteps[userId];
+          const { login, inboundId, name, gb } = userSteps[userId];
+          // สร้าง UUID
           const newUUID = uuidv4();
-          const expiryTime = Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
+          // เวลาหมดอายุ
+          const expiryTime = Math.floor(Date.now() / 1000) + days * 24 * 3600;
 
-          // ตั้งค่าการเรียก API
+          // เพิ่ม `/panel/api/inbounds/addClient` ให้อัตโนมัติ
+          const finalURL = `${login.url}/panel/api/inbounds/addClient`;
+
+          bot.sendMessage(chatId, "🔄 กำลังสร้างโค้ด... (ล็อกอินอัตโนมัติ)");
+
           const settings = {
             method: 'POST',
-            url: `${login.url}/panel/api/inbounds/addClient`,
+            url: finalURL,
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
             },
             data: {
-              id: finalInboundId,
+              id: inboundId, // inbound ID
               settings: JSON.stringify({
                 clients: [
                   {
@@ -185,7 +159,7 @@ module.exports = {
                     flow: '',
                     email: name,
                     limitIp: 0,
-                    totalGB: finalGB,
+                    totalGB: gb,
                     expiryTime: expiryTime,
                     enable: true,
                     tgId: userId,
@@ -197,29 +171,27 @@ module.exports = {
             },
           };
 
-          bot.sendMessage(chatId, "🔄 กำลังสร้างโค้ดของคุณ...");
-
-          // เรียก API ด้วย axios
+          // เรียก API
           axios(settings)
             .then(() => {
-              // สร้างลิงก์ VLESS
+              // สร้างลิงก์ vless://
               const link = `vless://${newUUID}@facebookbotvip.vipv2boxth.xyz:433?type=ws&path=%2F&host=&security=tls&fp=chrome&alpn=&allowInsecure=1&sni=fbcdn.net#${encodeURIComponent(
                 name
               )}`;
-              bot.sendMessage(chatId, `✅ โค้ดของคุณถูกสร้างสำเร็จ!\n\n🔗 ลิงก์: ${link}`);
+              bot.sendMessage(chatId, `✅ สร้างโค้ดสำเร็จ!\n\n🔗 ลิงก์: ${link}`);
             })
-            .catch((error) => {
-              bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการสร้างโค้ด กรุณาลองใหม่อีกครั้ง");
-              console.error(error.message);
+            .catch((err) => {
+              console.error("Error creating client:", err.message);
+              bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการสร้างโค้ด");
             });
 
-          // ลบสถานะทั้งหมดของผู้ใช้
+          // ลบสถานะ
           delete userSteps[userId];
           break;
+        }
 
-        // หากเกิดข้อผิดพลาด
         default:
-          bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการดำเนินการ");
+          // หากมีขั้นตอนที่ไม่อยู่ในเงื่อนไข
           delete userSteps[userId];
       }
     });
