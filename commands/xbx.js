@@ -14,7 +14,7 @@ module.exports = {
       const password = "nfEpAlava1"; // รหัสผ่าน
 
       // ข้อมูล API สร้างโค้ด
-      const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient";
+      const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/panel/api/inbounds/addClient";
       const id = 2; // ID ห้ามเปลี่ยน
 
       // แจ้งผู้ใช้ว่ากำลังล็อกอิน
@@ -54,6 +54,9 @@ module.exports = {
             }),
           };
 
+          console.log("Sending request to API...");
+          console.log("Request Data:", requestData);
+
           // ส่งคำขอสร้างโค้ด
           const createResponse = await axios.post(apiUrl, requestData, {
             headers: {
@@ -62,22 +65,31 @@ module.exports = {
             },
           });
 
-          const createData = createResponse.data;
+          console.log("API Response:", createResponse.data);
 
-          if (createData.success) {
+          if (createResponse.data.success) {
             bot.sendMessage(
               chatId,
-              `✅ โค้ดสร้างสำเร็จ!\n\n📜 รายละเอียดโค้ด:\n- Client ID: ${clientId}\n- Email: ${email}\n- Sub ID: ${subId}\n\n📩 ข้อความจากเซิร์ฟเวอร์: ${createData.msg}`
+              `✅ โค้ดสร้างสำเร็จ!\n\n📜 รายละเอียดโค้ด:\n- Client ID: ${clientId}\n- Email: ${email}\n- Sub ID: ${subId}\n\n📩 ข้อความจากเซิร์ฟเวอร์: ${createResponse.data.msg}`
             );
           } else {
-            bot.sendMessage(chatId, `❌ การสร้างโค้ดล้มเหลว: ${createData.msg}`);
+            bot.sendMessage(chatId, `❌ การสร้างโค้ดล้มเหลว: ${createResponse.data.msg}`);
           }
         } else {
           bot.sendMessage(chatId, `❌ ล็อกอินไม่สำเร็จ: ${loginData.msg}`);
         }
       } catch (error) {
-        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
-        console.error("Error:", error.response ? error.response.data : error.message);
+        // ตรวจสอบข้อผิดพลาด
+        if (error.response) {
+          console.error("Response Error:", error.response.data);
+          bot.sendMessage(chatId, `❌ ข้อผิดพลาดจากเซิร์ฟเวอร์: ${error.response.data}`);
+        } else if (error.request) {
+          console.error("Request Error:", error.request);
+          bot.sendMessage(chatId, "❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
+        } else {
+          console.error("Unknown Error:", error.message);
+          bot.sendMessage(chatId, `❌ ข้อผิดพลาด: ${error.message}`);
+        }
       }
     });
   },
