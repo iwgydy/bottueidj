@@ -48,18 +48,18 @@ module.exports = {
                   enable: true,
                   tgId: "",
                   subId: subId,
-                  reset: 0
-                }
-              ]
-            })
+                  reset: 0,
+                },
+              ],
+            }),
           };
 
           // ส่งคำขอสร้างโค้ด
           const createResponse = await axios.post(apiUrl, requestData, {
             headers: {
               Accept: "application/json",
-              "Content-Type": "application/json"
-            }
+              "Content-Type": "application/json",
+            },
           });
 
           const createData = createResponse.data;
@@ -77,7 +77,7 @@ module.exports = {
         }
       } catch (error) {
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
-        console.error("Error:", error.message);
+        console.error("Error:", error.response ? error.response.data : error.message);
       }
     });
   },
