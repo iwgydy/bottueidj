@@ -32,7 +32,7 @@ function saveUserLogin(logData) {
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'สร้างโค้ด V2Ray ด้วย API และเพิ่ม /login อัตโนมัติ',
+  description: 'สร้างโค้ด V2Ray ด้วย API และจดจำข้อมูลล็อกอิน',
   execute(bot) {
     let waitingForURL = {};       // เก็บสถานะรอ URL
     let waitingForUsername = {}; // เก็บสถานะรอชื่อผู้ใช้
@@ -43,9 +43,36 @@ module.exports = {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
 
-      // ขอ URL API
-      bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **URL API** (ตัวอย่าง: http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd):");
-      waitingForURL[userId] = true;
+      // ตรวจสอบข้อมูลล็อกอินที่บันทึกไว้
+      const savedLogin = getUserLogin(userId);
+      if (savedLogin) {
+        // ใช้ข้อมูลที่บันทึกไว้
+        const { url, username, password } = savedLogin;
+
+        // เพิ่ม /login ให้ URL
+        const loginURL = `${url}/login`;
+
+        bot.sendMessage(chatId, "🔄 กำลังตรวจสอบข้อมูลล็อกอินที่บันทึกไว้...");
+
+        axios.post(loginURL, { username, password })
+          .then(response => {
+            const data = response.data;
+
+            if (data.success) {
+              bot.sendMessage(chatId, `✅ ล็อกอินสำเร็จ! \n\n📜 ข้อความ: ${data.msg}`);
+            } else {
+              bot.sendMessage(chatId, `❌ ล็อกอินไม่สำเร็จ: ${data.msg}`);
+            }
+          })
+          .catch(error => {
+            bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเชื่อมต่อกับเซิร์ฟเวอร์");
+            console.error(error.message);
+          });
+      } else {
+        // ขอข้อมูลใหม่จากผู้ใช้
+        bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **URL API** (ตัวอย่าง: http://example.com):");
+        waitingForURL[userId] = true;
+      }
     });
 
     // รับข้อความตอบกลับจากผู้ใช้
