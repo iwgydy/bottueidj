@@ -14,7 +14,7 @@ module.exports = {
       const password = "nfEpAlava1"; // รหัสผ่าน
 
       // ข้อมูล API สร้างโค้ด
-      const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/panel/api/inbounds/addClient";
+      const apiUrl = "http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient";
       const id = 2; // ID ห้ามเปลี่ยน
 
       // แจ้งผู้ใช้ว่ากำลังล็อกอิน
@@ -43,8 +43,8 @@ module.exports = {
                   flow: "",
                   email: email,
                   limitIp: 0,
-                  totalGB: 0,
-                  expiryTime: 0,
+                  totalGB: 10, // กำหนด Total GB เป็น 10 เพื่อให้ไม่เป็น 0
+                  expiryTime: Date.now() + 30 * 24 * 60 * 60 * 1000, // ระบุวันหมดอายุ (30 วันนับจากปัจจุบัน)
                   enable: true,
                   tgId: "",
                   subId: subId,
@@ -82,7 +82,10 @@ module.exports = {
         // ตรวจสอบข้อผิดพลาด
         if (error.response) {
           console.error("Response Error:", error.response.data);
-          bot.sendMessage(chatId, `❌ ข้อผิดพลาดจากเซิร์ฟเวอร์: ${error.response.data}`);
+          bot.sendMessage(
+            chatId,
+            `❌ ข้อผิดพลาดจากเซิร์ฟเวอร์: ${JSON.stringify(error.response.data, null, 2)}`
+          );
         } else if (error.request) {
           console.error("Request Error:", error.request);
           bot.sendMessage(chatId, "❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้");
