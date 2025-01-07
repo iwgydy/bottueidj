@@ -1,11 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid'); // ใช้สำหรับสร้าง UUID
+const { v4: uuidv4 } = require('uuid');
 
 const loginsFilePath = path.join(__dirname, '../data/looks.json');
 
-// อ่านข้อมูลล็อกอินจากไฟล์
 function getUserLogin(userId) {
   if (fs.existsSync(loginsFilePath)) {
     const logins = JSON.parse(fs.readFileSync(loginsFilePath, 'utf8'));
@@ -14,28 +13,24 @@ function getUserLogin(userId) {
   return null;
 }
 
-// บันทึกข้อมูลล็อกอินลงไฟล์
 function saveUserLogin(logData) {
   let logins = [];
   if (fs.existsSync(loginsFilePath)) {
     logins = JSON.parse(fs.readFileSync(loginsFilePath, 'utf8'));
   }
 
-  // ลบข้อมูลล็อกอินเก่าของผู้ใช้
   logins = logins.filter(login => login.userId !== logData.userId);
 
-  // เพิ่มข้อมูลล็อกอินใหม่
   logins.push(logData);
 
-  // บันทึกกลับลงไฟล์
   fs.writeFileSync(loginsFilePath, JSON.stringify(logins, null, 2));
 }
 
 module.exports = {
   name: 'สร้างโค้ด',
-  description: 'สร้างโค้ด V2Ray พร้อมการตรวจจับข้อความอัตโนมัติ',
+  description: 'สร้างโค้ด V2Ray พร้อมแก้ไขข้อผิดพลาดตัวแปรซ้ำ',
   execute(bot) {
-    let userSteps = {}; // เก็บสถานะขั้นตอนของผู้ใช้
+    let userSteps = {};
 
     bot.onText(/\/สร้างโค้ด/, (msg) => {
       const chatId = msg.chat.id;
@@ -44,11 +39,9 @@ module.exports = {
       const savedLogin = getUserLogin(userId);
 
       if (!savedLogin) {
-        // เริ่มขอข้อมูล URL
         bot.sendMessage(chatId, "กรุณากรอก **URL API** (ตัวอย่าง: http://example.com):");
         userSteps[userId] = { step: 'waitingForURL' };
       } else {
-        // เริ่มสร้างโค้ดทันที
         bot.sendMessage(chatId, "กรุณาใส่ ID (ตัวอย่าง: 5):");
         userSteps[userId] = { step: 'waitingForID', login: savedLogin };
       }
@@ -59,50 +52,46 @@ module.exports = {
       const userId = msg.from.id;
       const text = msg.text.trim();
 
-      if (!userSteps[userId]) return; // ไม่มีขั้นตอนให้ดำเนินการ
+      if (!userSteps[userId]) return;
 
       const step = userSteps[userId].step;
 
-      // ขั้นตอนต่างๆ
       switch (step) {
         case 'waitingForURL':
-          userSteps[userId].login = { url: text }; // บันทึก URL
+          userSteps[userId].login = { url: text };
           bot.sendMessage(chatId, "กรุณากรอก **ชื่อผู้ใช้**:");
           userSteps[userId].step = 'waitingForUsername';
           break;
 
         case 'waitingForUsername':
-          userSteps[userId].login.username = text; // บันทึกชื่อผู้ใช้
+          userSteps[userId].login.username = text;
           bot.sendMessage(chatId, "กรุณากรอก **รหัสผ่าน**:");
           userSteps[userId].step = 'waitingForPassword';
           break;
 
         case 'waitingForPassword':
-          userSteps[userId].login.password = text; // บันทึกรหัสผ่าน
-
-          // บันทึกข้อมูลล็อกอิน
+          userSteps[userId].login.password = text;
           saveUserLogin({
             userId,
             ...userSteps[userId].login,
           });
-
           bot.sendMessage(chatId, "กรุณาใส่ ID (ตัวอย่าง: 5):");
           userSteps[userId].step = 'waitingForID';
           break;
 
         case 'waitingForID':
-          const id = parseInt(text, 10);
-          if (isNaN(id) || id <= 0) {
+          const clientId = parseInt(text, 10);
+          if (isNaN(clientId) || clientId <= 0) {
             bot.sendMessage(chatId, "❌ กรุณาใส่ ID เป็นตัวเลขที่มากกว่า 0:");
             return;
           }
-          userSteps[userId].id = id; // บันทึก ID
+          userSteps[userId].id = clientId;
           bot.sendMessage(chatId, "กรุณาตั้งชื่อโค้ดของคุณ:");
           userSteps[userId].step = 'waitingForName';
           break;
 
         case 'waitingForName':
-          userSteps[userId].name = text; // บันทึกชื่อโค้ด
+          userSteps[userId].name = text;
           bot.sendMessage(chatId, "กรุณากำหนด GB (ตัวอย่าง: 50):");
           userSteps[userId].step = 'waitingForGB';
           break;
@@ -113,7 +102,7 @@ module.exports = {
             bot.sendMessage(chatId, "❌ กรุณากำหนด GB เป็นตัวเลขที่มากกว่า 0:");
             return;
           }
-          userSteps[userId].gb = gb; // บันทึก GB
+          userSteps[userId].gb = gb;
           bot.sendMessage(chatId, "กรุณากำหนดจำนวนวันหมดอายุ (ตัวอย่าง: 30):");
           userSteps[userId].step = 'waitingForDays';
           break;
@@ -126,8 +115,7 @@ module.exports = {
           }
           userSteps[userId].days = days;
 
-          // สร้างโค้ด
-          const { login, id, name, gb } = userSteps[userId];
+          const { login, id: clientId, name, gb } = userSteps[userId];
           const uuid = uuidv4();
           const expiryTime = Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
 
@@ -139,7 +127,7 @@ module.exports = {
               'Content-Type': 'application/json',
             },
             data: {
-              id,
+              id: clientId,
               settings: JSON.stringify({
                 clients: [
                   {
@@ -173,7 +161,6 @@ module.exports = {
               console.error(error.message);
             });
 
-          // ลบข้อมูลสถานะ
           delete userSteps[userId];
           break;
 
