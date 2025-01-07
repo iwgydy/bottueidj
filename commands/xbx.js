@@ -34,38 +34,48 @@ module.exports = {
   name: 'สร้างโค้ด',
   description: 'สร้างโค้ด V2Ray ด้วย API',
   execute(bot) {
+    let waitingForURL = {};       // เก็บสถานะรอ URL
     let waitingForUsername = {}; // เก็บสถานะรอชื่อผู้ใช้
     let waitingForPassword = {}; // เก็บสถานะรอรหัสผ่าน
+    let loginInfo = {};          // เก็บข้อมูลชั่วคราวระหว่างการตั้งค่า
 
     bot.onText(/\/สร้างโค้ด/, (msg) => {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
 
-      // ขอชื่อผู้ใช้จากผู้ใช้
-      bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **ชื่อผู้ใช้** ของคุณ:");
-      waitingForUsername[userId] = true;
+      // ขอ URL API
+      bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **URL API** (ตัวอย่าง: http://localhost:2053/login):");
+      waitingForURL[userId] = true;
     });
 
-    // รับชื่อผู้ใช้
+    // รับข้อความตอบกลับจากผู้ใช้
     bot.on('message', (msg) => {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
       const text = msg.text;
 
-      if (waitingForUsername[userId]) {
-        // บันทึกชื่อผู้ใช้และขอรหัสผ่าน
-        bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **รหัสผ่าน** ของคุณ:");
+      // รับ URL API
+      if (waitingForURL[userId]) {
+        loginInfo[userId] = { url: text }; // เก็บ URL
+        bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **ชื่อผู้ใช้**:");
+        waitingForURL[userId] = false; // ปิดสถานะรอ URL
+        waitingForUsername[userId] = true; // เปิดสถานะรอชื่อผู้ใช้
+      } 
+      // รับชื่อผู้ใช้
+      else if (waitingForUsername[userId]) {
+        loginInfo[userId].username = text; // เก็บชื่อผู้ใช้
+        bot.sendMessage(chatId, "กรุณาตอบกลับข้อความนี้ด้วย **รหัสผ่าน**:");
         waitingForUsername[userId] = false; // ปิดสถานะรอชื่อผู้ใช้
-        waitingForPassword[userId] = text; // เก็บชื่อผู้ใช้ไว้
-      } else if (waitingForPassword[userId]) {
-        const username = waitingForPassword[userId];
-        const password = text;
+        waitingForPassword[userId] = true; // เปิดสถานะรอรหัสผ่าน
+      } 
+      // รับรหัสผ่าน
+      else if (waitingForPassword[userId]) {
+        loginInfo[userId].password = text; // เก็บรหัสผ่าน
+        const { url, username, password } = loginInfo[userId];
 
-        // ส่งข้อความตรวจสอบ
+        // ตรวจสอบข้อมูลผ่าน API
         bot.sendMessage(chatId, "🔄 กำลังตรวจสอบข้อมูล...");
-
-        // เรียก API
-        axios.post('http://localhost:2053/login', { username, password })
+        axios.post(url, { username, password })
           .then(response => {
             const data = response.data;
 
@@ -73,6 +83,7 @@ module.exports = {
               // บันทึกข้อมูลล็อกอินลงไฟล์
               saveUserLogin({
                 userId: userId,
+                url: url,
                 username: username,
                 password: password,
                 timestamp: new Date().toISOString()
@@ -90,6 +101,7 @@ module.exports = {
 
         // ปิดสถานะรอรหัสผ่าน
         delete waitingForPassword[userId];
+        delete loginInfo[userId];
       }
     });
   },
