@@ -2,9 +2,10 @@ const axios = require('axios');
 
 module.exports = {
   name: 'gpt',
-  description: 'คุยกับ GPT ต่อเนื่องได้ 5 นาที',
+  description: 'คุยกับ GPT ต่อเนื่องได้ 5 นาที และจดจำข้อความเดิม',
   execute(bot) {
-    const activeChats = new Map(); // ใช้เก็บสถานะการใช้งานของแต่ละแชท
+    const activeChats = new Map(); // เก็บสถานะการใช้งานของแต่ละแชท
+    const chatHistories = new Map(); // เก็บประวัติการสนทนาของแต่ละแชท
 
     bot.onText(/\/gpt (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
@@ -13,12 +14,13 @@ module.exports = {
       // ตั้งสถานะให้แชทนี้ใช้งาน GPT ได้ต่อเนื่อง
       activeChats.set(chatId, Date.now());
 
-      // ส่งข้อความไปยัง GPT
+      // ส่งข้อความไปยัง GPT พร้อมกับประวัติการสนทนา
       await sendMessageToGPT(bot, chatId, query);
 
       // ลบสถานะหลังจาก 5 นาที
       setTimeout(() => {
         activeChats.delete(chatId);
+        chatHistories.delete(chatId); // ลบประวัติการสนทนาด้วย
       }, 5 * 60 * 1000);
     });
 
@@ -34,21 +36,31 @@ module.exports = {
     });
 
     // ฟังก์ชันสำหรับส่งข้อความไปยัง GPT
-    async function sendMessageToGPT(bot, chatId, query, imageUrl = null) {
+    async function sendMessageToGPT(bot, chatId, query) {
       bot.sendMessage(chatId, "🔄 กำลังส่งข้อความไปยัง GPT...");
 
       try {
+        // ดึงประวัติการสนทนาจาก Map
+        const history = chatHistories.get(chatId) || [];
+        history.push({ role: 'user', content: query }); // เพิ่มข้อความผู้ใช้ลงในประวัติ
+
         const apiUrl = `https://kaiz-apis.gleeze.com/api/gpt-4o-pro`;
         const params = {
           q: query,
           uid: chatId, // ใช้ chatId เป็น uid
-          imageUrl: imageUrl || "สวัสดี", // หากไม่มี imageUrl ให้ส่ง "สวัสดี" เป็นค่าเริ่มต้น
+          imageUrl: "สวัสดี", // หากไม่มี imageUrl ให้ส่ง "สวัสดี" เป็นค่าเริ่มต้น
+          history: JSON.stringify(history), // ส่งประวัติการสนทนาไปด้วย
         };
 
         const response = await axios.get(apiUrl, { params });
 
         if (response.data && response.data.response) {
-          bot.sendMessage(chatId, `🤖 GPT ตอบว่า: ${response.data.response}`);
+          const gptResponse = response.data.response;
+          bot.sendMessage(chatId, `🤖 GPT ตอบว่า: ${gptResponse}`);
+
+          // เพิ่มคำตอบของ GPT ลงในประวัติการสนทนา
+          history.push({ role: 'assistant', content: gptResponse });
+          chatHistories.set(chatId, history); // อัปเดตประวัติการสนทนา
         } else {
           bot.sendMessage(chatId, "❌ ไม่สามารถดึงคำตอบจาก GPT ได้");
         }
