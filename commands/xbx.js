@@ -2,16 +2,42 @@ const axios = require('axios');
 
 module.exports = {
   name: 'gpt',
-  description: 'คุยกับ GPT ผ่าน API',
+  description: 'คุยกับ GPT ต่อเนื่องได้ 5 นาที',
   execute(bot) {
+    const activeChats = new Map(); // ใช้เก็บสถานะการใช้งานของแต่ละแชท
+
     bot.onText(/\/gpt (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
-      const query = match[1]; // รับข้อความที่ผู้ใช้ป้อนตามหลังคำสั่ง /gpt
+      const query = match[1]; // ข้อความที่ผู้ใช้ส่งหลังคำสั่ง /gpt
 
+      // ตั้งสถานะให้แชทนี้ใช้งาน GPT ได้ต่อเนื่อง
+      activeChats.set(chatId, Date.now());
+
+      // ส่งข้อความไปยัง GPT
+      await sendMessageToGPT(bot, chatId, query);
+
+      // ลบสถานะหลังจาก 5 นาที
+      setTimeout(() => {
+        activeChats.delete(chatId);
+      }, 5 * 60 * 1000);
+    });
+
+    // รับข้อความที่ไม่ได้เริ่มต้นด้วย /
+    bot.on('message', async (msg) => {
+      const chatId = msg.chat.id;
+
+      // หากแชทนี้อยู่ในสถานะใช้งาน GPT ต่อเนื่อง
+      if (activeChats.has(chatId)) {
+        const query = msg.text; // ข้อความที่ผู้ใช้ส่งมา
+        await sendMessageToGPT(bot, chatId, query);
+      }
+    });
+
+    // ฟังก์ชันสำหรับส่งข้อความไปยัง GPT
+    async function sendMessageToGPT(bot, chatId, query) {
       bot.sendMessage(chatId, "🔄 กำลังส่งข้อความไปยัง GPT...");
 
       try {
-        // เรียกใช้ API
         const apiUrl = `https://kaiz-apis.gleeze.com/api/gpt-3.5?q=${encodeURIComponent(query)}`;
         const response = await axios.get(apiUrl);
 
@@ -24,6 +50,6 @@ module.exports = {
         console.error("Error calling GPT API:", error.message);
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเชื่อมต่อกับ GPT");
       }
-    });
+    }
   },
 };
