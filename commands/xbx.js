@@ -34,12 +34,18 @@ module.exports = {
     });
 
     // ฟังก์ชันสำหรับส่งข้อความไปยัง GPT
-    async function sendMessageToGPT(bot, chatId, query) {
+    async function sendMessageToGPT(bot, chatId, query, imageUrl = null) {
       bot.sendMessage(chatId, "🔄 กำลังส่งข้อความไปยัง GPT...");
 
       try {
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/gpt-3.5?q=${encodeURIComponent(query)}`;
-        const response = await axios.get(apiUrl);
+        const apiUrl = `https://kaiz-apis.gleeze.com/api/gpt-4o-pro`;
+        const params = {
+          q: query,
+          uid: chatId, // ใช้ chatId เป็น uid
+          imageUrl: imageUrl || "สวัสดี", // หากไม่มี imageUrl ให้ส่ง "สวัสดี" เป็นค่าเริ่มต้น
+        };
+
+        const response = await axios.get(apiUrl, { params });
 
         if (response.data && response.data.response) {
           bot.sendMessage(chatId, `🤖 GPT ตอบว่า: ${response.data.response}`);
