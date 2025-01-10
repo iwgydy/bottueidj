@@ -41,8 +41,15 @@ module.exports = {
             const apiUrl = `https://kaiz-apis.gleeze.com/api/tiktok-dl?url=${encodeURIComponent(url)}`;
             const response = await axios.get(apiUrl);
 
-            if (response.data && response.data.videoUrl) {
-              const videoUrl = response.data.videoUrl;
+            if (response.data && response.data.url) {
+              const videoUrl = response.data.url;
+              const thumbnailUrl = response.data.thumbnail;
+              const title = response.data.title;
+
+              // ส่ง thumbnail และข้อมูลวิดีโอให้ผู้ใช้
+              await bot.sendPhoto(chatId, thumbnailUrl, {
+                caption: `📽️ **${title}**\n\n⬇️ กำลังดาวน์โหลดวิดีโอ...`,
+              });
 
               // ดาวน์โหลดวิดีโอและส่งให้ผู้ใช้
               const videoPath = await downloadVideo(videoUrl, chatId);
