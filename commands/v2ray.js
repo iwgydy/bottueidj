@@ -4,8 +4,8 @@ module.exports = {
   execute(bot) {
     const activeV2rayRequests = new Map(); // ใช้เก็บสถานะการใช้งานของแต่ละแชท
 
-    // จับคำสั่ง "แจกโค้ดv2ray"
-    bot.onText(/แจกโค้ดv2ray/, (msg) => {
+    // จับคำสั่ง "/v2ray"
+    bot.onText(/\/v2ray/, (msg) => {
       try {
         const chatId = msg.chat.id;
 
@@ -33,11 +33,11 @@ module.exports = {
         setTimeout(() => {
           if (activeV2rayRequests.has(chatId)) {
             activeV2rayRequests.delete(chatId);
-            bot.sendMessage(chatId, "⏳ เวลาสำหรับการเลือกหมายเลขหมดอายุแล้ว กรุณาใช้คำสั่ง 'แจกโค้ดv2ray' อีกครั้ง");
+            bot.sendMessage(chatId, "⏳ เวลาสำหรับการเลือกหมายเลขหมดอายุแล้ว กรุณาใช้คำสั่ง /v2ray อีกครั้ง");
           }
         }, 60 * 1000); // 1 นาที
       } catch (error) {
-        console.error("Error in v2ray command:", error.message);
+        console.error("Error in /v2ray command:", error.message);
       }
     });
 
