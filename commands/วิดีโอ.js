@@ -41,8 +41,8 @@ module.exports = {
               reply_markup: {
                 inline_keyboard: [
                   [
-                    { text: "📥 ดาวน์โหลดวิดีโอ", callback_data: `video_${chatId}_${sentMessage.message_id}` },
-                    { text: "🎵 ดาวน์โหลดไฟล์เสียง", callback_data: `audio_${chatId}_${sentMessage.message_id}` },
+                    { text: "📥 ดาวน์โหลดวิดีโอ", callback_data: `video_${chatId}` },
+                    { text: "🎵 ดาวน์โหลดไฟล์เสียง", callback_data: `audio_${chatId}` },
                   ],
                 ],
               },
@@ -67,7 +67,7 @@ module.exports = {
       const data = callbackQuery.data;
 
       try {
-        const [type, id, messageId] = data.split('_');
+        const [type, id] = data.split('_');
 
         // ดึงข้อมูลวิดีโอและไฟล์เสียงจาก Map
         const media = mediaMap.get(chatId);
@@ -78,7 +78,9 @@ module.exports = {
         const fileUrl = type === 'video' ? media.video : media.audio;
 
         // ลบข้อความ "เลือกรูปแบบ" ทันทีหลังจากกดปุ่ม
-        await bot.deleteMessage(chatId, messageId);
+        if (media.messageId) {
+          await bot.deleteMessage(chatId, media.messageId);
+        }
 
         // แจ้งผู้ใช้ว่ากำลังดาวน์โหลด
         bot.sendMessage(chatId, "🔄 กำลังดาวน์โหลดไฟล์...");
