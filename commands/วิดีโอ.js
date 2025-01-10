@@ -4,7 +4,7 @@ const path = require('path');
 
 module.exports = {
   name: 'ytdl',
-  description: 'ดาวน์โหลดวิดีโอหรือไฟล์เสียงจาก YouTube โดยไม่รอลิงก์อื่นและลบข้อความหลังจากกดปุ่ม',
+  description: 'ดาวน์โหลดวิดีโอหรือไฟล์เสียงจาก YouTube โดยไม่ตอบสนองเมื่อลิงก์ไม่ถูกต้อง',
   execute(bot) {
     // ใช้ Map เพื่อเก็บข้อมูลวิดีโอและไฟล์เสียงสำหรับแต่ละแชท
     const mediaMap = new Map();
@@ -53,9 +53,8 @@ module.exports = {
           } else {
             bot.sendMessage(chatId, "❌ ไม่สามารถดึงข้อมูลวิดีโอได้");
           }
-        } else {
-          bot.sendMessage(chatId, "❌ ลิงก์ที่ส่งมาไม่ใช่ลิงก์ YouTube");
         }
+        // ไม่ต้องทำอะไรหากลิงก์ไม่ใช่ YouTube
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดาวน์โหลดวิดีโอ:", error.message);
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการประมวลผลคำขอของคุณ");
