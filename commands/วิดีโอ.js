@@ -3,18 +3,18 @@ const fs = require('fs');
 const path = require('path');
 
 module.exports = {
-  name: 'zombie',
-  description: 'แปลงรูปภาพเป็นซอมบี้',
+  name: 'removeb',
+  description: 'ลบพื้นหลังออกจากรูปภาพ',
   execute(bot) {
-    // จับคำสั่ง /zombie
-    bot.onText(/\/zombie/, async (msg) => {
+    // จับคำสั่ง /removeb
+    bot.onText(/\/removeb/, async (msg) => {
       try {
         const chatId = msg.chat.id;
 
         // แจ้งผู้ใช้ให้ส่งรูปภาพ
-        bot.sendMessage(chatId, "📸 กรุณาส่งรูปภาพที่ต้องการแปลงเป็นซอมบี้:");
+        bot.sendMessage(chatId, "📸 กรุณาส่งรูปภาพที่ต้องการลบพื้นหลัง:");
       } catch (error) {
-        console.error("Error in /zombie command:", error.message);
+        console.error("Error in /removeb command:", error.message);
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเริ่มคำสั่ง");
       }
     });
@@ -30,24 +30,24 @@ module.exports = {
         const fileUrl = await bot.getFileLink(fileId);
 
         // แจ้งผู้ใช้ว่ากำลังประมวลผล
-        bot.sendMessage(chatId, "🔄 กำลังแปลงรูปภาพเป็นซอมบี้...");
+        bot.sendMessage(chatId, "🔄 กำลังลบพื้นหลังออกจากรูปภาพ...");
 
-        // เรียกใช้ API เพื่อแปลงรูปภาพ
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/zombie?url=${encodeURIComponent(fileUrl)}`;
+        // เรียกใช้ API เพื่อลบพื้นหลัง
+        const apiUrl = `https://kaiz-apis.gleeze.com/api/removeb?url=${encodeURIComponent(fileUrl)}`;
         const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
 
-        // สร้างไฟล์ภาพซอมบี้ชั่วคราว
-        const zombiePath = path.join(__dirname, `${chatId}_zombie.jpg`);
-        fs.writeFileSync(zombiePath, response.data);
+        // สร้างไฟล์ภาพที่ลบพื้นหลังแล้วชั่วคราว
+        const removedBgPath = path.join(__dirname, `${chatId}_removed_bg.png`);
+        fs.writeFileSync(removedBgPath, response.data);
 
-        // ส่งภาพซอมบี้ให้ผู้ใช้
-        await bot.sendPhoto(chatId, fs.createReadStream(zombiePath));
+        // ส่งภาพที่ลบพื้นหลังแล้วให้ผู้ใช้
+        await bot.sendPhoto(chatId, fs.createReadStream(removedBgPath));
 
         // ลบไฟล์หลังจากส่งเสร็จ
-        fs.unlinkSync(zombiePath);
+        fs.unlinkSync(removedBgPath);
       } catch (error) {
-        console.error("Error in zombie photo processing:", error.message);
-        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการแปลงรูปภาพเป็นซอมบี้");
+        console.error("Error in remove background processing:", error.message);
+        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการลบพื้นหลังออกจากรูปภาพ");
       }
     });
   },
