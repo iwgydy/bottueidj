@@ -6,26 +6,19 @@ module.exports = {
   name: 'downloadtiktok',
   description: 'ดาวน์โหลดวิดีโอ TikTok จากลิงก์ที่ผู้ใช้ส่งมา',
   execute(bot) {
-    const activeDownloads = new Map(); // ใช้เก็บสถานะการใช้งานของแต่ละแชท
+    const activeDownloads = new Map(); // ใช้เก็บสถานะการใช้งานของแต่ละผู้ใช้
 
     // จับคำสั่ง /downloadtiktok
     bot.onText(/\/downloadtiktok/, (msg) => {
       try {
+        const userId = msg.from.id; // ใช้ ID ผู้ใช้แทน ID แชท
         const chatId = msg.chat.id;
 
-        // ตั้งสถานะให้แชทนี้สามารถส่งลิงก์ TikTok ได้ภายใน 1 วัน
-        activeDownloads.set(chatId, Date.now());
+        // ตั้งสถานะให้ผู้ใช้นี้สามารถส่งลิงก์ TikTok ได้
+        activeDownloads.set(userId, chatId);
 
         // แจ้งผู้ใช้ให้ส่งลิงก์ TikTok
         bot.sendMessage(chatId, "📥 กรุณาวางลิงก์ TikTok ที่ต้องการดาวน์โหลด:");
-
-        // ลบสถานะหลังจาก 1 วัน
-        setTimeout(() => {
-          if (activeDownloads.has(chatId)) {
-            activeDownloads.delete(chatId);
-            bot.sendMessage(chatId, "⏳ เวลาสำหรับการดาวน์โหลด TikTok หมดอายุแล้ว กรุณาใช้คำสั่ง /downloadtiktok อีกครั้ง");
-          }
-        }, 24 * 60 * 60 * 1000); // 1 วัน
       } catch (error) {
         console.error("Error in /downloadtiktok command:", error.message);
       }
@@ -34,10 +27,11 @@ module.exports = {
     // รับข้อความที่ผู้ใช้ส่งมา
     bot.on('message', async (msg) => {
       try {
+        const userId = msg.from.id; // ใช้ ID ผู้ใช้แทน ID แชท
         const chatId = msg.chat.id;
 
-        // หากแชทนี้อยู่ในสถานะใช้งาน TikTok Download
-        if (activeDownloads.has(chatId)) {
+        // หากผู้ใช้นี้อยู่ในสถานะใช้งาน TikTok Download
+        if (activeDownloads.has(userId)) {
           const url = msg.text; // ลิงก์ที่ผู้ใช้ส่งมา
 
           // ตรวจสอบว่าลิงก์เป็น TikTok หรือไม่
@@ -59,33 +53,40 @@ module.exports = {
               });
 
               // ดาวน์โหลดวิดีโอและส่งให้ผู้ใช้
-              const videoPath = await downloadVideo(videoUrl, chatId);
+              const videoPath = await downloadVideo(videoUrl, userId);
               await bot.sendVideo(chatId, videoPath);
 
               // ลบไฟล์วิดีโอหลังจากส่งเสร็จ
               fs.unlinkSync(videoPath);
+
+              // หยุดการทำงานหลังจากดาวน์โหลดเสร็จ
+              activeDownloads.delete(userId);
+              bot.sendMessage(chatId, "✅ ดาวน์โหลดวิดีโอ TikTok เสร็จสิ้น");
             } else {
               bot.sendMessage(chatId, "❌ ไม่สามารถดาวน์โหลดวิดีโอ TikTok ได้");
+              activeDownloads.delete(userId); // หยุดการทำงานหากเกิดข้อผิดพลาด
             }
           } else {
             bot.sendMessage(chatId, "❌ ลิงก์ที่ส่งมาไม่ใช่ลิงก์ TikTok กรุณาส่งลิงก์ที่ถูกต้อง");
+            activeDownloads.delete(userId); // หยุดการทำงานหากลิงก์ไม่ถูกต้อง
           }
         }
       } catch (error) {
         console.error("Error in TikTok download process:", error.message);
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการดาวน์โหลดวิดีโอ TikTok");
+        activeDownloads.delete(userId); // หยุดการทำงานหากเกิดข้อผิดพลาด
       }
     });
 
     // ฟังก์ชันสำหรับดาวน์โหลดวิดีโอ
-    async function downloadVideo(videoUrl, chatId) {
+    async function downloadVideo(videoUrl, userId) {
       const response = await axios({
         method: 'GET',
         url: videoUrl,
         responseType: 'stream',
       });
 
-      const videoPath = path.join(__dirname, `${chatId}_tiktok.mp4`);
+      const videoPath = path.join(__dirname, `${userId}_tiktok.mp4`);
       const writer = fs.createWriteStream(videoPath);
 
       response.data.pipe(writer);
