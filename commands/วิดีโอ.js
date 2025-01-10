@@ -1,20 +1,18 @@
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
 
 module.exports = {
-  name: 'removeb',
-  description: 'ลบพื้นหลังออกจากรูปภาพ',
+  name: 'imghippo',
+  description: 'อัปโหลดรูปภาพไปยัง Imghippo และรับ URL ของรูปภาพที่อัปโหลด',
   execute(bot) {
-    // จับคำสั่ง /removeb
-    bot.onText(/\/removeb/, async (msg) => {
+    // จับคำสั่ง /imghippo
+    bot.onText(/\/imghippo/, async (msg) => {
       try {
         const chatId = msg.chat.id;
 
         // แจ้งผู้ใช้ให้ส่งรูปภาพ
-        bot.sendMessage(chatId, "📸 กรุณาส่งรูปภาพที่ต้องการลบพื้นหลัง:");
+        bot.sendMessage(chatId, "📸 กรุณาส่งรูปภาพที่ต้องการอัปโหลดไปยัง Imghippo:");
       } catch (error) {
-        console.error("Error in /removeb command:", error.message);
+        console.error("Error in /imghippo command:", error.message);
         bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการเริ่มคำสั่ง");
       }
     });
@@ -29,25 +27,23 @@ module.exports = {
         const fileId = photo.file_id;
         const fileUrl = await bot.getFileLink(fileId);
 
-        // แจ้งผู้ใช้ว่ากำลังประมวลผล
-        bot.sendMessage(chatId, "🔄 กำลังลบพื้นหลังออกจากรูปภาพ...");
+        // แจ้งผู้ใช้ว่ากำลังอัปโหลดรูปภาพ
+        bot.sendMessage(chatId, "🔄 กำลังอัปโหลดรูปภาพไปยัง Imghippo...");
 
-        // เรียกใช้ API เพื่อลบพื้นหลัง
-        const apiUrl = `https://kaiz-apis.gleeze.com/api/removeb?url=${encodeURIComponent(fileUrl)}`;
-        const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
+        // เรียกใช้ API เพื่ออัปโหลดรูปภาพ
+        const apiUrl = `https://kaiz-apis.gleeze.com/api/imghippo?uploadImageUrl=${encodeURIComponent(fileUrl)}`;
+        const response = await axios.get(apiUrl);
 
-        // สร้างไฟล์ภาพที่ลบพื้นหลังแล้วชั่วคราว
-        const removedBgPath = path.join(__dirname, `${chatId}_removed_bg.png`);
-        fs.writeFileSync(removedBgPath, response.data);
-
-        // ส่งภาพที่ลบพื้นหลังแล้วให้ผู้ใช้
-        await bot.sendPhoto(chatId, fs.createReadStream(removedBgPath));
-
-        // ลบไฟล์หลังจากส่งเสร็จ
-        fs.unlinkSync(removedBgPath);
+        // ตรวจสอบผลลัพธ์จาก API
+        if (response.data && response.data.url) {
+          const uploadedImageUrl = response.data.url; // URL ของรูปภาพที่อัปโหลด
+          bot.sendMessage(chatId, `✅ อัปโหลดรูปภาพสำเร็จ!\n\n🔗 ลิงก์รูปภาพ: ${uploadedImageUrl}`);
+        } else {
+          bot.sendMessage(chatId, "❌ ไม่สามารถอัปโหลดรูปภาพได้");
+        }
       } catch (error) {
-        console.error("Error in remove background processing:", error.message);
-        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการลบพื้นหลังออกจากรูปภาพ");
+        console.error("Error in imghippo photo upload:", error.message);
+        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ");
       }
     });
   },
