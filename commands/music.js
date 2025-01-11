@@ -29,9 +29,20 @@ module.exports = {
         const apiUrl = `https://yt-video-production.up.railway.app/background-remove?imageUrl=${encodeURIComponent(fileUrl)}`;
         const response = await axios.get(apiUrl, { responseType: 'arraybuffer' });
 
+        // ตรวจสอบว่าข้อมูลที่ได้จาก API ถูกต้องหรือไม่
+        if (!response.data || response.data.length === 0) {
+          throw new Error("API ไม่สามารถลบพื้นหลังได้");
+        }
+
         // บันทึกรูปภาพที่ลบพื้นหลังแล้ว
         const outputPath = path.join(__dirname, `${chatId}_nobg.png`);
         fs.writeFileSync(outputPath, response.data);
+
+        // ตรวจสอบขนาดไฟล์ก่อนส่ง
+        const fileSize = fs.statSync(outputPath).size;
+        if (fileSize > 5 * 1024 * 1024) { // จำกัดขนาดไฟล์ไม่เกิน 5MB
+          throw new Error("รูปภาพมีขนาดใหญ่เกินไป");
+        }
 
         // ส่งรูปภาพที่ลบพื้นหลังแล้วกลับให้ผู้ใช้
         await bot.sendPhoto(chatId, fs.createReadStream(outputPath));
@@ -43,7 +54,15 @@ module.exports = {
         await deleteMessageSafely(bot, chatId, processingMessage.message_id);
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการลบพื้นหลัง:", error.message);
-        bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการลบพื้นหลัง กรุณาลองใหม่อีกครั้ง");
+
+        // ส่งข้อความแจ้งผู้ใช้
+        if (error.message.includes("IMAGE_PROCESS_FAILED")) {
+          bot.sendMessage(chatId, "❌ ไม่สามารถประมวลผลรูปภาพได้ กรุณาลองส่งรูปภาพอื่น");
+        } else if (error.message.includes("ขนาดใหญ่เกินไป")) {
+          bot.sendMessage(chatId, "❌ รูปภาพมีขนาดใหญ่เกินไป กรุณาส่งรูปภาพที่มีขนาดเล็กกว่า 5MB");
+        } else {
+          bot.sendMessage(chatId, "❌ เกิดข้อผิดพลาดในการลบพื้นหลัง กรุณาลองใหม่อีกครั้ง");
+        }
       }
     });
 
