@@ -101,6 +101,9 @@ module.exports = {
 
         // ลบข้อความ "กำลังประมวลผลลิงก์..."
         await deleteMessageSafely(bot, chatId, processingMessageId);
+
+        // ลบข้อความ "⬇️ เลือกรูปแบบที่ต้องการดาวน์โหลด:"
+        await deleteMessageSafely(bot, chatId, callbackQuery.message.message_id);
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์:", error.message);
         bot.sendMessage(chatId, "❌ ไม่สามารถดาวน์โหลดไฟล์ได้");
