@@ -14,12 +14,14 @@ module.exports = {
       const username = msg.from.username || msg.from.first_name;
       const link = match[1].trim(); // ลิงก์อังเปาที่ผู้ใช้ป้อน
 
-      // ดึงรหัสอังเปาจากลิงก์
-      const codeMatch = link.match(/vouchers\/([^\/]+)/);
-      if (!codeMatch || !codeMatch[1]) {
+      // ดึงรหัสอังเปาจากพารามิเตอร์ `v` ในลิงก์
+      const urlParams = new URLSearchParams(new URL(link).search);
+      const code = urlParams.get('v'); // รหัสอังเปา
+
+      // ตรวจสอบว่ารหัสอังเปามีค่าหรือไม่
+      if (!code) {
         return bot.sendMessage(chatId, '⚠️ ลิงก์อังเปาไม่ถูกต้อง กรุณาตรวจสอบลิงก์อีกครั้ง');
       }
-      const code = codeMatch[1]; // รหัสอังเปา
 
       // ข้อมูลสำหรับเรียกใช้ API
       const apiUrl = `https://gift.truemoney.com/campaign/vouchers/${code}/redeem`;
@@ -32,7 +34,7 @@ module.exports = {
         Connection: 'keep-alive',
       };
       const body = {
-        mobile: '0825658423', // แทนที่ด้วยเบอร์โทรศัพท์ที่ลงทะเบียนกับ TrueMoney
+        mobile: 'เบอร์โทรศัพท์ของคุณ', // แทนที่ด้วยเบอร์โทรศัพท์ที่ลงทะเบียนกับ TrueMoney
         voucher_hash: code,
       };
 
