@@ -42,8 +42,8 @@ module.exports = {
               reply_markup: {
                 inline_keyboard: [
                   [
-                    { text: "📥 ดาวน์โหลดวิดีโอ", callback_data: `video_${chatId}_${sentMessage.message_id}` },
-                    { text: "🎵 ดาวน์โหลดไฟล์เสียง", callback_data: `audio_${chatId}_${sentMessage.message_id}` },
+                    { text: "📥 ดาวน์โหลดวิดีโอ", callback_data: `video_${chatId}_${processingMessage.message_id}` },
+                    { text: "🎵 ดาวน์โหลดไฟล์เสียง", callback_data: `audio_${chatId}_${processingMessage.message_id}` },
                   ],
                 ],
               },
@@ -71,7 +71,7 @@ module.exports = {
       const data = callbackQuery.data;
 
       try {
-        const [type, id, messageId] = data.split('_');
+        const [type, id, processingMessageId] = data.split('_');
 
         // ดึงข้อมูลวิดีโอและไฟล์เสียงจาก Map
         const media = mediaMap.get(chatId);
@@ -99,8 +99,8 @@ module.exports = {
         // ลบข้อความ "กำลังดาวน์โหลดไฟล์..."
         await deleteMessageSafely(bot, chatId, downloadingMessage.message_id);
 
-        // ลบข้อความ "เลือกรูปแบบ"
-        await deleteMessageSafely(bot, chatId, messageId);
+        // ลบข้อความ "กำลังประมวลผลลิงก์..."
+        await deleteMessageSafely(bot, chatId, processingMessageId);
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์:", error.message);
         bot.sendMessage(chatId, "❌ ไม่สามารถดาวน์โหลดไฟล์ได้");
