@@ -7,17 +7,19 @@ module.exports = {
   name: 'เติมเงิน', // ชื่อคำสั่ง
   description: 'เติมเงินผ่านลิงก์อังเปา TrueMoney', // คำอธิบายคำสั่ง
   execute(bot) {
-    // คำสั่งเติมเงิน (/เติมเงิน <รหัสอังเปา>)
+    // คำสั่งเติมเงิน (/เติมเงิน <ลิงก์อังเปา>)
     bot.onText(/\/เติมเงิน (.+)/, async (msg, match) => {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
       const username = msg.from.username || msg.from.first_name;
-      const code = match[1].trim(); // รหัสอังเปาที่ผู้ใช้ป้อน
+      const link = match[1].trim(); // ลิงก์อังเปาที่ผู้ใช้ป้อน
 
-      // ตรวจสอบว่ารหัสอังเปามีค่าหรือไม่
-      if (!code) {
-        return bot.sendMessage(chatId, '⚠️ กรุณาระบุรหัสอังเปา');
+      // ดึงรหัสอังเปาจากลิงก์
+      const codeMatch = link.match(/vouchers\/([^\/]+)/);
+      if (!codeMatch || !codeMatch[1]) {
+        return bot.sendMessage(chatId, '⚠️ ลิงก์อังเปาไม่ถูกต้อง กรุณาตรวจสอบลิงก์อีกครั้ง');
       }
+      const code = codeMatch[1]; // รหัสอังเปา
 
       // ข้อมูลสำหรับเรียกใช้ API
       const apiUrl = `https://gift.truemoney.com/campaign/vouchers/${code}/redeem`;
