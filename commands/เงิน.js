@@ -1,8 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
+// สร้างโฟลเดอร์ data หากยังไม่มี
+const dataDir = path.join(__dirname, 'data');
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir);
+}
+
 // ไฟล์เก็บข้อมูลเงินของผู้ใช้
-const dataFilePath = path.join(__dirname, 'sndjw.json');
+const dataFilePath = path.join(dataDir, 'sndjw.json');
 
 // ฟังก์ชันโหลดข้อมูลจากไฟล์
 function loadData() {
