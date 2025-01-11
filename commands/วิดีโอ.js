@@ -53,7 +53,7 @@ module.exports = {
             mediaMap.set(chatId, { ...mediaMap.get(chatId), messageId: sentMessage.message_id });
 
             // ลบข้อความ "กำลังประมวลผลลิงก์..."
-            await bot.deleteMessage(chatId, processingMessage.message_id);
+            await deleteMessageSafely(bot, chatId, processingMessage.message_id);
           } else {
             bot.sendMessage(chatId, "❌ ไม่สามารถดึงข้อมูลวิดีโอได้");
           }
@@ -87,9 +87,9 @@ module.exports = {
         // ดาวน์โหลดและส่งไฟล์
         const filePath = await downloadFile(fileUrl, chatId, type);
         if (type === 'video') {
-          await bot.sendVideo(chatId, filePath);
+          await bot.sendVideo(chatId, fs.createReadStream(filePath), {}, { contentType: 'video/mp4' });
         } else if (type === 'audio') {
-          await bot.sendAudio(chatId, filePath);
+          await bot.sendAudio(chatId, fs.createReadStream(filePath), {}, { contentType: 'audio/mpeg' });
         }
 
         // ลบไฟล์หลังจากส่งเสร็จ
@@ -97,10 +97,10 @@ module.exports = {
         mediaMap.delete(chatId); // ลบข้อมูลหลังจากดาวน์โหลดเสร็จ
 
         // ลบข้อความ "กำลังดาวน์โหลดไฟล์..."
-        await bot.deleteMessage(chatId, downloadingMessage.message_id);
+        await deleteMessageSafely(bot, chatId, downloadingMessage.message_id);
 
         // ลบข้อความ "กำลังประมวลผลลิงก์..."
-        await bot.deleteMessage(chatId, processingMessageId);
+        await deleteMessageSafely(bot, chatId, processingMessageId);
       } catch (error) {
         console.error("เกิดข้อผิดพลาดในการดาวน์โหลดไฟล์:", error.message);
         bot.sendMessage(chatId, "❌ ไม่สามารถดาวน์โหลดไฟล์ได้");
@@ -125,6 +125,15 @@ module.exports = {
         writer.on('finish', () => resolve(filePath));
         writer.on('error', reject);
       });
+    }
+
+    // ฟังก์ชันสำหรับลบข้อความอย่างปลอดภัย
+    async function deleteMessageSafely(bot, chatId, messageId) {
+      try {
+        await bot.deleteMessage(chatId, messageId);
+      } catch (error) {
+        console.error("ไม่สามารถลบข้อความได้:", error.message);
+      }
     }
   },
 };
