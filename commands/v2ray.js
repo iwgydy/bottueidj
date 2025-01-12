@@ -10,11 +10,10 @@ module.exports = {
     const DEFAULT_USERNAME = 'WYEXPRkCKL';
     const DEFAULT_PASSWORD = 'nfEpAlava1';
 
-    // ฟังก์ชันสร้างโค้ดใหม่ (ล็อกอินอัตโนมัติ)
-    const createV2RayClient = async (name, expiryDays, totalGB) => {
+    // ฟังก์ชันล็อกอิน
+    const v2rayLogin = async () => {
       try {
-        // ล็อกอิน
-        const loginResponse = await axios.post(
+        const response = await axios.post(
           V2RAY_LOGIN_URL,
           new URLSearchParams({
             username: DEFAULT_USERNAME,
@@ -25,16 +24,27 @@ module.exports = {
           }
         );
 
-        if (!loginResponse.data.success) {
-          throw new Error(`❌ ล็อกอินไม่สำเร็จ: ${loginResponse.data.msg}`);
+        if (response.data.success) {
+          console.log('✅ ล็อกอินสำเร็จ');
+          return true; // ล็อกอินสำเร็จ
+        } else {
+          console.error('❌ ล็อกอินไม่สำเร็จ:', response.data.msg);
+          throw new Error(`❌ ล็อกอินไม่สำเร็จ: ${response.data.msg}`);
         }
+      } catch (error) {
+        console.error('Error during V2Ray login:', error.message);
+        throw new Error('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ V2Ray ได้');
+      }
+    };
 
-        // สร้างโค้ดใหม่
-        const uuid = uuidv4();
+    // ฟังก์ชันสร้างโค้ดใหม่
+    const createV2RayClient = async (name, expiryDays, totalGB) => {
+      try {
+        const uuid = uuidv4(); // สร้าง UUID ใหม่
         const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
 
         const clientData = {
-          id: 2, // ระบุ ID
+          id: 2, // เปลี่ยนค่า ID หากจำเป็น
           settings: JSON.stringify({
             clients: [
               {
@@ -55,14 +65,14 @@ module.exports = {
 
         console.log('Request Body:', clientData);
 
-        const createResponse = await axios.post(V2RAY_ADD_CLIENT_URL, clientData, {
+        const response = await axios.post(V2RAY_ADD_CLIENT_URL, clientData, {
           headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
           },
         });
 
-        return { success: true, data: JSON.parse(createResponse.data.settings).clients[0] };
+        return JSON.parse(response.data.settings).clients[0]; // ส่งคืนข้อมูล Client ที่สร้าง
       } catch (error) {
         if (error.response) {
           console.error('API Error Response:', error.response.data);
@@ -83,11 +93,15 @@ module.exports = {
         return bot.sendMessage(chatId, '❌ โปรดระบุ: ชื่อโค้ด วันหมดอายุ (วัน) และจำนวน GB เช่น /v2raycreate mycode 30 100');
       }
 
-      bot.sendMessage(chatId, '🔄 กำลังล็อกอินและสร้างโค้ดใหม่...');
-
+      bot.sendMessage(chatId, '🔄 กำลังล็อกอินเข้าสู่ระบบ...');
       try {
-        const result = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
-        const client = result.data;
+        // ล็อกอินก่อน
+        const loginSuccess = await v2rayLogin();
+        if (!loginSuccess) return; // หากล็อกอินไม่สำเร็จ ให้หยุดการทำงาน
+
+        bot.sendMessage(chatId, '🔄 กำลังสร้างโค้ดใหม่...');
+        const client = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
+
         bot.sendMessage(
           chatId,
           `✅ สร้างโค้ดสำเร็จ:\n- ชื่อ: ${name}\n- UUID: ${client.id}\n- วันหมดอายุ: ${expiryDays} วัน\n- GB: ${totalGB} GB`
