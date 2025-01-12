@@ -44,8 +44,8 @@ module.exports = {
         const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
 
         const clientData = {
-          id: 2, // เปลี่ยนค่า ID หากจำเป็น
-          settings: JSON.stringify({
+          id: 3, // ID ที่ต้องการ
+          settings: {
             clients: [
               {
                 id: uuid,
@@ -60,7 +60,7 @@ module.exports = {
                 reset: 0,
               },
             ],
-          }),
+          },
         };
 
         console.log('Request Body:', clientData);
@@ -72,10 +72,13 @@ module.exports = {
           },
         });
 
-        return JSON.parse(response.data.settings).clients[0]; // ส่งคืนข้อมูล Client ที่สร้าง
+        console.log('Response:', response.data);
+        return response.data;
       } catch (error) {
         if (error.response) {
-          console.error('API Error Response:', error.response.data);
+          console.error('API Error Response:', error.response.data); // แสดงข้อผิดพลาดจาก API
+          console.error('Status Code:', error.response.status);
+          console.error('Headers:', error.response.headers);
         } else {
           console.error('Error:', error.message);
         }
@@ -104,7 +107,7 @@ module.exports = {
 
         bot.sendMessage(
           chatId,
-          `✅ สร้างโค้ดสำเร็จ:\n- ชื่อ: ${name}\n- UUID: ${client.id}\n- วันหมดอายุ: ${expiryDays} วัน\n- GB: ${totalGB} GB`
+          `✅ สร้างโค้ดสำเร็จ:\n- ชื่อ: ${name}\n- UUID: ${client.clients[0].id}\n- วันหมดอายุ: ${expiryDays} วัน\n- GB: ${totalGB} GB`
         );
       } catch (error) {
         bot.sendMessage(chatId, error.message);
