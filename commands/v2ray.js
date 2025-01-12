@@ -6,7 +6,7 @@ module.exports = {
   description: 'คำสั่งสำหรับจัดการ V2Ray',
   execute(bot) {
     const V2RAY_LOGIN_URL = 'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login';
-    const V2RAY_ADD_CLIENT_URL = 'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient';
+    const V2RAY_ADD_CLIENT_URL = 'http://creators.trueid.net.vipv2boxth.xyz:2053/panel/api/inbounds/addClient';
     const DEFAULT_USERNAME = 'WYEXPRkCKL';
     const DEFAULT_PASSWORD = 'nfEpAlava1';
 
@@ -44,8 +44,8 @@ module.exports = {
         const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
 
         const clientData = {
-          id: 3, // ID ที่ต้องการ
-          settings: {
+          id: 3,
+          settings: JSON.stringify({
             clients: [
               {
                 id: uuid,
@@ -60,7 +60,7 @@ module.exports = {
                 reset: 0,
               },
             ],
-          },
+          }),
         };
 
         console.log('Request Body:', clientData);
@@ -76,9 +76,8 @@ module.exports = {
         return response.data;
       } catch (error) {
         if (error.response) {
-          console.error('API Error Response:', error.response.data); // แสดงข้อผิดพลาดจาก API
+          console.error('API Error Response:', error.response.data);
           console.error('Status Code:', error.response.status);
-          console.error('Headers:', error.response.headers);
         } else {
           console.error('Error:', error.message);
         }
@@ -100,7 +99,7 @@ module.exports = {
       try {
         // ล็อกอินก่อน
         const loginSuccess = await v2rayLogin();
-        if (!loginSuccess) return; // หากล็อกอินไม่สำเร็จ ให้หยุดการทำงาน
+        if (!loginSuccess) return;
 
         bot.sendMessage(chatId, '🔄 กำลังสร้างโค้ดใหม่...');
         const client = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
