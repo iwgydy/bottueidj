@@ -10,10 +10,10 @@ module.exports = {
     const DEFAULT_USERNAME = 'WYEXPRkCKL';
     const DEFAULT_PASSWORD = 'nfEpAlava1';
 
-    // ฟังก์ชันสร้างโค้ดใหม่ (รวมการล็อกอินอัตโนมัติ)
+    // ฟังก์ชันสร้างโค้ดใหม่ (ล็อกอินอัตโนมัติ)
     const createV2RayClient = async (name, expiryDays, totalGB) => {
       try {
-        // ล็อกอินอัตโนมัติ
+        // ล็อกอิน
         const loginResponse = await axios.post(
           V2RAY_LOGIN_URL,
           new URLSearchParams({
@@ -34,7 +34,7 @@ module.exports = {
         const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
 
         const clientData = {
-          id: 2,
+          id: 2, // ระบุ ID
           settings: JSON.stringify({
             clients: [
               {
@@ -53,6 +53,8 @@ module.exports = {
           }),
         };
 
+        console.log('Request Body:', clientData);
+
         const createResponse = await axios.post(V2RAY_ADD_CLIENT_URL, clientData, {
           headers: {
             Accept: 'application/json',
@@ -67,7 +69,7 @@ module.exports = {
         } else {
           console.error('Error:', error.message);
         }
-        return { success: false, error: error.message };
+        throw new Error('❌ ไม่สามารถสร้างโค้ดใหม่ได้: โปรดตรวจสอบ URL และการตั้งค่า');
       }
     };
 
@@ -83,15 +85,15 @@ module.exports = {
 
       bot.sendMessage(chatId, '🔄 กำลังล็อกอินและสร้างโค้ดใหม่...');
 
-      const result = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
-      if (result.success) {
+      try {
+        const result = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
         const client = result.data;
         bot.sendMessage(
           chatId,
           `✅ สร้างโค้ดสำเร็จ:\n- ชื่อ: ${name}\n- UUID: ${client.id}\n- วันหมดอายุ: ${expiryDays} วัน\n- GB: ${totalGB} GB`
         );
-      } else {
-        bot.sendMessage(chatId, `❌ ไม่สามารถสร้างโค้ดได้: ${result.error}`);
+      } catch (error) {
+        bot.sendMessage(chatId, error.message);
       }
     });
   },
