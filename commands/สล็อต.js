@@ -3,7 +3,7 @@ const path = require('path');
 
 module.exports = {
   name: 'slot',
-  description: 'เกมสล็อตที่สมจริง ใช้ 1 บาทต่อการหมุน',
+  description: 'เกมสล็อตที่สามารถวางเงินเดิมพันได้ พร้อมอัตราชนะ 50/50',
   execute(bot) {
     const filePath = path.join(__dirname, 'smo.json');
 
@@ -16,7 +16,7 @@ module.exports = {
       return JSON.parse(data);
     }
 
-    // ฟังก์ชันบันทึกข้อมูลลงใน smo.json
+    // บันทึกข้อมูลลงใน smo.json
     function saveToFile(data) {
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
     }
@@ -30,69 +30,85 @@ module.exports = {
     }
 
     // ฟังก์ชันคำนวณรางวัล
-    function calculateReward(grid) {
+    function calculateReward(grid, bet) {
       const payout = {
-        '🍒': 2,
-        '🍋': 3,
-        '🍉': 5,
-        '⭐': 10,
-        '💎': 50,
-        '🍇': 20,
+        '🍒': 1.1,
+        '🍋': 1.5,
+        '🍉': 2.0,
+        '⭐': 5.0,
+        '💎': 10.0,
+        '🍇': 3.0,
       };
 
       let reward = 0;
 
-      // ตรวจสอบแนวกลาง
       if (grid[1][0] === grid[1][1] && grid[1][1] === grid[1][2]) {
-        reward = payout[grid[1][0]] || 0;
+        reward = payout[grid[1][0]] * bet;
       }
 
-      // ตรวจสอบแนวเฉียง
-      if (grid[0][0] === grid[1][1] && grid[1][1] === grid[2][2]) {
-        reward += payout[grid[1][1]] || 0;
-      }
-      if (grid[0][2] === grid[1][1] && grid[1][1] === grid[2][0]) {
-        reward += payout[grid[1][1]] || 0;
-      }
-
-      return reward;
+      return parseFloat(reward.toFixed(2));
     }
 
-    // จับคำสั่ง /slot
-    bot.onText(/\/slot/, async (msg) => {
+    // ฟังก์ชันสุ่มโอกาสชนะ (50/50)
+    function isWin() {
+      return Math.random() < 0.5; // 50% โอกาสชนะ
+    }
+
+    // จับคำสั่ง /slot <เงินเดิมพัน>
+    bot.onText(/\/slot (\d+(\.\d{1,2})?)/, async (msg, match) => {
       try {
         const userId = msg.from.id;
         const chatId = msg.chat.id;
+        const bet = parseFloat(match[1]);
 
-        // โหลดข้อมูลผู้ใช้
+        if (isNaN(bet) || bet <= 0) {
+          return bot.sendMessage(chatId, "❌ กรุณาระบุจำนวนเงินเดิมพันที่มากกว่า 0");
+        }
+
         const data = loadOrCreateFile();
 
-        // สร้างข้อมูลผู้ใช้ใหม่ถ้าไม่มี
         if (!data[userId]) {
-          data[userId] = { balance: 10 }; // เริ่มต้นที่ 10 บาท
+          data[userId] = { balance: 10 };
           saveToFile(data);
         }
 
-        // ตรวจสอบยอดเงิน
-        if (data[userId].balance < 1) {
-          return bot.sendMessage(chatId, "❌ คุณมียอดเงินไม่พอที่จะเล่นสล็อต (ต้องการ 1 บาท)");
+        const userBalance = data[userId].balance;
+
+        if (userBalance < bet) {
+          return bot.sendMessage(chatId, "❌ คุณมียอดเงินไม่พอสำหรับเดิมพัน");
         }
 
-        // หักเงิน 1 บาท
-        data[userId].balance -= 1;
+        data[userId].balance -= bet;
         saveToFile(data);
 
-        // หมุนสล็อต
-        const grid = spinSlot();
-        const reward = calculateReward(grid);
+        let message = await bot.sendMessage(chatId, "🎰 กำลังหมุนสล็อต...");
 
-        // อัปเดตยอดเงินถ้าชนะ
-        if (reward > 0) {
+        // เพิ่มความสมจริงด้วยข้อความเปลี่ยนระหว่างหมุน
+        const spinSteps = [
+          "| 🍒 | 🍋 | 🍉 |",
+          "| 🍋 | ⭐ | 🍉 |",
+          "| ⭐ | 💎 | 🍒 |",
+          "| 💎 | 🍇 | 🍉 |"
+        ];
+
+        for (let i = 0; i < spinSteps.length; i++) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await bot.editMessageText(`🎰 กำลังหมุน...\n${spinSteps[i]}`, {
+            chat_id: chatId,
+            message_id: message.message_id,
+          });
+        }
+
+        const grid = spinSlot();
+        const win = isWin(); // ตัดสินว่าชนะหรือแพ้
+
+        let reward = 0;
+        if (win) {
+          reward = calculateReward(grid, bet);
           data[userId].balance += reward;
           saveToFile(data);
         }
 
-        // สร้างผลลัพธ์แบบเว็บสล็อต
         const slotResult = `
 🎰 **ผลการหมุนสล็อต** 🎰
 \`\`\`
@@ -101,13 +117,16 @@ module.exports = {
 | ${grid[2][0]} | ${grid[2][1]} | ${grid[2][2]} |
 \`\`\`
 
-${reward > 0 ? `🎉 **คุณชนะรางวัล ${reward} บาท!**` : '😢 **คุณไม่ได้รางวัลในรอบนี้**'}
+${win ? `🎉 **คุณชนะรางวัล ${reward.toFixed(2)} บาท!**` : '😢 **คุณไม่ได้รางวัลในรอบนี้**'}
 
 💰 **ยอดเงินคงเหลือ**: ${data[userId].balance.toFixed(2)} บาท
         `;
 
-        // ส่งผลลัพธ์ให้ผู้ใช้
-        await bot.sendMessage(chatId, slotResult, { parse_mode: 'Markdown' });
+        await bot.editMessageText(slotResult, {
+          chat_id: chatId,
+          message_id: message.message_id,
+          parse_mode: 'Markdown',
+        });
       } catch (error) {
         console.error("Error in /slot command:", error.message);
         bot.sendMessage(msg.chat.id, "❌ เกิดข้อผิดพลาดในการเล่นสล็อต");
