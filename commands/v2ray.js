@@ -39,7 +39,7 @@ module.exports = {
       const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60; // คำนวณเวลา expiry เป็น timestamp
 
       const clientData = {
-        id: 5,
+        id: 2,
         settings: JSON.stringify({
           clients: [
             {
