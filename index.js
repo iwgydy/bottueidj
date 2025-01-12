@@ -8,7 +8,7 @@ const path = require('path');
 const TelegramBot = require('node-telegram-bot-api');
 
 // 1) ใส่ Token ของบอท Telegram (โปรดเก็บ Token ไว้เป็นความลับ 🔒)
-const token = '7929038707:AAHZk78OcCN0Kdjs6mjAIV9DM0Qh-7iEHhs'; // แทนที่ด้วย Token จริงของคุณ
+const token = 'YOUR_TELEGRAM_BOT_TOKEN'; // แทนที่ด้วย Token จริงของคุณ
 
 // 2) สร้าง instance ของบอท (ตั้งค่า polling ให้บอทฟังข้อความ)
 const bot = new TelegramBot(token, { polling: true });
@@ -26,14 +26,18 @@ const users = new Map(); // สำหรับเก็บสถานะกา�
 const commandsPath = path.join(__dirname, 'commands');
 fs.readdirSync(commandsPath).forEach((file) => {
   if (file.endsWith('.js')) {
-    // นำเข้าโมดูลคำสั่ง
-    const command = require(path.join(commandsPath, file));
-    // ตรวจสอบว่าไฟล์คำสั่งมีโครงสร้างถูกต้อง
-    if (command.name && typeof command.execute === 'function') {
-      bot.commands.set(`/${command.name}`, command);
-      console.log(`✅ โหลดคำสั่ง: /${command.name}`);
-    } else {
-      console.warn(`⚠️ คำสั่งในไฟล์ ${file} ไม่ถูกต้อง กรุณาตรวจสอบโครงสร้าง`);
+    try {
+      // นำเข้าโมดูลคำสั่ง
+      const command = require(path.join(commandsPath, file));
+      // ตรวจสอบว่าไฟล์คำสั่งมีโครงสร้างถูกต้อง
+      if (command && command.name && typeof command.execute === 'function') {
+        bot.commands.set(`/${command.name}`, command);
+        console.log(`✅ โหลดคำสั่ง: /${command.name}`);
+      } else {
+        console.warn(`⚠️ คำสั่งในไฟล์ ${file} ไม่ถูกต้อง กรุณาตรวจสอบโครงสร้าง`);
+      }
+    } catch (error) {
+      console.error(`❌ เกิดข้อผิดพลาดขณะโหลดคำสั่ง ${file}:`, error);
     }
   }
 });
