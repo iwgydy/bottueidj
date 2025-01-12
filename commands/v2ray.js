@@ -1,58 +1,79 @@
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid'); // ใช้สำหรับสร้าง UUID
+const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
-  name: 'v2ray',
-  description: 'คำสั่งสำหรับจัดการ V2Ray',
-  execute(bot) {
-    const V2RAY_LOGIN_URL = 'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login';
-    const V2RAY_ADD_CLIENT_URL = 'http://creators.trueid.net.vipv2boxth.xyz:2053/panel/api/inbounds/addClient';
-    const DEFAULT_USERNAME = 'WYEXPRkCKL';
-    const DEFAULT_PASSWORD = 'nfEpAlava1';
+  name: 'addclient', // ชื่อคำสั่ง (ไม่ต้องมี /)
+  description: 'สร้างโค้ดใหม่และเพิ่มลูกค้าในระบบ V2Ray',
+  execute: (bot) => {
+    // ------------------------------------------------------------
+    // 1) หากพิมพ์ /addclient แต่ไม่มีข้อมูลเพิ่มเติม
+    // ------------------------------------------------------------
+    bot.onText(/^\/addclient(?:@\w+)?$/, (msg) => {
+      bot.sendMessage(
+        msg.chat.id,
+        "❗ โปรดระบุชื่อโค้ด จำนวนวัน และ GB ที่ต้องการ\n\nตัวอย่าง: `/addclient mycode 30 100`",
+        { parse_mode: "Markdown" }
+      );
+    });
 
-    // ฟังก์ชันล็อกอิน
-    const v2rayLogin = async () => {
-      try {
-        const response = await axios.post(
-          V2RAY_LOGIN_URL,
-          new URLSearchParams({
-            username: DEFAULT_USERNAME,
-            password: DEFAULT_PASSWORD,
-          }),
-          {
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          }
+    // ------------------------------------------------------------
+    // 2) คำสั่ง /addclient <ชื่อโค้ด> <จำนวนวัน> <GB>
+    // ------------------------------------------------------------
+    bot.onText(/^\/addclient(?:@\w+)?\s+(\S+)\s+(\d+)\s+(\d+)/, async (msg, match) => {
+      const chatId = msg.chat.id;
+      const codeName = match[1];
+      const days = parseInt(match[2], 10);
+      const totalGB = parseInt(match[3], 10);
+
+      if (!codeName || isNaN(days) || days <= 0 || isNaN(totalGB) || totalGB < 0) {
+        return bot.sendMessage(
+          chatId,
+          "❗ โปรดระบุข้อมูลให้ถูกต้อง เช่น `/addclient mycode 30 100`",
+          { parse_mode: "Markdown" }
         );
-
-        if (response.data.success) {
-          console.log('✅ ล็อกอินสำเร็จ');
-          return true; // ล็อกอินสำเร็จ
-        } else {
-          console.error('❌ ล็อกอินไม่สำเร็จ:', response.data.msg);
-          throw new Error(`❌ ล็อกอินไม่สำเร็จ: ${response.data.msg}`);
-        }
-      } catch (error) {
-        console.error('Error during V2Ray login:', error.message);
-        throw new Error('❌ ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ V2Ray ได้');
       }
-    };
 
-    // ฟังก์ชันสร้างโค้ดใหม่
-    const createV2RayClient = async (name, expiryDays, totalGB) => {
+      // แจ้งว่ากำลังสร้างโค้ด
+      let creatingMsg;
       try {
-        const uuid = uuidv4(); // สร้าง UUID ใหม่
-        const expiryTime = Math.floor(Date.now() / 1000) + expiryDays * 24 * 60 * 60;
+        creatingMsg = await bot.sendMessage(chatId, `⏳ กำลังสร้างโค้ด: "${codeName}" ...`);
+      } catch (error) {
+        console.error("ส่งข้อความแจ้งสถานะไม่สำเร็จ:", error);
+        return;
+      }
+
+      // ขั้นตอนล็อกอิน
+      const loginUrl = 'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login'; // URL สำหรับล็อกอิน
+      const loginData = {
+        username: 'WYEXPRkCKL', // แทนที่ด้วยชื่อผู้ใช้จริง
+        password: 'nfEpAlava1', // แทนที่ด้วยรหัสผ่านจริง
+      };
+
+      try {
+        const loginResponse = await axios.post(loginUrl, new URLSearchParams(loginData), {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+
+        if (!loginResponse.data.success) {
+          throw new Error(`ล็อกอินล้มเหลว: ${loginResponse.data.msg}`);
+        }
+        console.log('✅ ล็อกอินสำเร็จ');
+
+        // ขั้นตอนสร้างโค้ด
+        const addClientUrl = 'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient'; // URL สำหรับเพิ่มลูกค้า
+        const uuid = uuidv4();
+        const expiryTime = Math.floor(Date.now() / 1000) + days * 24 * 60 * 60;
 
         const clientData = {
-          id: 3,
+          id: 3, // ปรับตามระบบของคุณ
           settings: JSON.stringify({
             clients: [
               {
                 id: uuid,
                 flow: '',
-                email: name,
-                limitIp: 0,
-                totalGB: totalGB,
+                email: codeName,
+                limitIp: 2,
+                totalGB: totalGB > 0 ? totalGB * 1024 * 1024 * 1024 : 0, // แปลง GB เป็น Bytes
                 expiryTime: expiryTime,
                 enable: true,
                 tgId: '',
@@ -63,53 +84,46 @@ module.exports = {
           }),
         };
 
-        console.log('Request Body:', clientData);
-
-        const response = await axios.post(V2RAY_ADD_CLIENT_URL, clientData, {
+        const addClientResponse = await axios.post(addClientUrl, clientData, {
           headers: {
             Accept: 'application/json',
             'Content-Type': 'application/json',
           },
         });
 
-        console.log('Response:', response.data);
-        return response.data;
-      } catch (error) {
-        if (error.response) {
-          console.error('API Error Response:', error.response.data);
-          console.error('Status Code:', error.response.status);
-        } else {
-          console.error('Error:', error.message);
+        if (!addClientResponse.data.success) {
+          throw new Error(`สร้างโค้ดล้มเหลว: ${addClientResponse.data.msg}`);
         }
-        throw new Error('❌ ไม่สามารถสร้างโค้ดใหม่ได้: โปรดตรวจสอบ URL และการตั้งค่า');
-      }
-    };
 
-    // ตรวจจับคำสั่ง /v2raycreate
-    bot.onText(/\/v2raycreate (.+)/, async (msg, match) => {
-      const chatId = msg.chat.id;
-      const args = match[1].split(' ');
-      const [name, expiryDays, totalGB] = args;
+        const clientCode = `vless://${uuid}@localhost:443?type=ws&path=/&host=localhost&security=none#${encodeURIComponent(
+          codeName
+        )}`;
+        console.log('✅ สร้างโค้ดสำเร็จ:', clientCode);
 
-      if (!name || !expiryDays || !totalGB) {
-        return bot.sendMessage(chatId, '❌ โปรดระบุ: ชื่อโค้ด วันหมดอายุ (วัน) และจำนวน GB เช่น /v2raycreate mycode 30 100');
-      }
+        // ลบข้อความ "กำลังสร้างโค้ด"
+        if (creatingMsg) {
+          await bot.deleteMessage(chatId, creatingMsg.message_id);
+        }
 
-      bot.sendMessage(chatId, '🔄 กำลังล็อกอินเข้าสู่ระบบ...');
-      try {
-        // ล็อกอินก่อน
-        const loginSuccess = await v2rayLogin();
-        if (!loginSuccess) return;
-
-        bot.sendMessage(chatId, '🔄 กำลังสร้างโค้ดใหม่...');
-        const client = await createV2RayClient(name, parseInt(expiryDays, 10), parseInt(totalGB, 10));
-
+        // ส่งโค้ดให้ผู้ใช้
         bot.sendMessage(
           chatId,
-          `✅ สร้างโค้ดสำเร็จ:\n- ชื่อ: ${name}\n- UUID: ${client.clients[0].id}\n- วันหมดอายุ: ${expiryDays} วัน\n- GB: ${totalGB} GB`
+          `✅ *สร้างโค้ดสำเร็จ!*\n\n📬 โค้ดของคุณ:\n\`${clientCode}\`\n\n📅 วันหมดอายุ: ${days} วัน\n💾 ข้อมูล: ${totalGB} GB`,
+          { parse_mode: 'Markdown' }
         );
       } catch (error) {
-        bot.sendMessage(chatId, error.message);
+        console.error('❌ เกิดข้อผิดพลาด:', error.message);
+
+        // ลบข้อความ "กำลังสร้างโค้ด"
+        if (creatingMsg) {
+          try {
+            await bot.deleteMessage(chatId, creatingMsg.message_id);
+          } catch (err) {
+            console.error('ลบข้อความกำลังสร้างโค้ดไม่สำเร็จ:', err.message);
+          }
+        }
+
+        bot.sendMessage(chatId, `❌ เกิดข้อผิดพลาด: ${error.message}`);
       }
     });
   },
