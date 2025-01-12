@@ -3,7 +3,7 @@ const path = require('path');
 
 module.exports = {
   name: 'transfer',
-  description: 'โอนเงินให้เพื่อนโดยการตอบกลับข้อความ',
+  description: 'โอนเงินให้เพื่อนโดยการตอบกลับข้อความใดก็ได้',
   execute(bot) {
     const filePath = path.join(__dirname, 'smo.json');
 
@@ -21,50 +21,80 @@ module.exports = {
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
     }
 
-    // ฟังก์ชันสำหรับการโอนเงิน
-    bot.onText(/\/transfer (\d+(\.\d{1,2})?)/, async (msg, match) => {
+    // สถานะการรอโอนเงิน
+    const pendingTransfers = new Map();
+
+    // ดักจับการตอบกลับข้อความ
+    bot.on('message', async (msg) => {
       try {
         const senderId = msg.from.id; // ID ของผู้ส่งเงิน
-        const amount = parseFloat(match[1]); // จำนวนเงินที่โอน
         const replyToMessage = msg.reply_to_message; // ข้อความที่ถูกตอบกลับ
 
-        if (!replyToMessage) {
+        // หากผู้ใช้ตอบกลับข้อความ
+        if (replyToMessage && !pendingTransfers.has(senderId)) {
+          const receiverId = replyToMessage.from.id; // ID ของผู้รับเงิน
+          const receiverName = replyToMessage.from.username || replyToMessage.from.first_name;
+
+          // บันทึกสถานะการรอโอนเงิน
+          pendingTransfers.set(senderId, { receiverId, receiverName });
+
+          // ขอให้ผู้ใช้พิมพ์จำนวนเงิน
           return bot.sendMessage(
             msg.chat.id,
-            "❌ กรุณาตอบกลับข้อความของผู้ใช้ที่ต้องการโอนเงินให้ พร้อมระบุจำนวนเงิน"
+            `กรุณาระบุจำนวนเงินที่ต้องการโอนให้ @${receiverName || 'unknown'}`,
+            { reply_to_message_id: msg.message_id }
           );
         }
 
-        const receiverId = replyToMessage.from.id; // ID ของผู้รับเงิน
-        const receiverName = replyToMessage.from.username || replyToMessage.from.first_name;
+        // หากผู้ส่งอยู่ในสถานะรอโอนเงิน
+        if (pendingTransfers.has(senderId)) {
+          const transferData = pendingTransfers.get(senderId);
+          const amount = parseFloat(msg.text); // จำนวนเงินที่โอน (ข้อความที่พิมพ์)
 
-        const data = loadOrCreateFile();
+          if (isNaN(amount) || amount <= 0) {
+            return bot.sendMessage(
+              msg.chat.id,
+              "❌ กรุณาระบุจำนวนเงินที่ถูกต้อง (มากกว่า 0 บาท)"
+            );
+          }
 
-        // ตรวจสอบยอดเงินและความถูกต้องของจำนวนเงิน
-        if (isNaN(amount) || amount <= 0) {
-          return bot.sendMessage(msg.chat.id, "❌ กรุณาระบุจำนวนเงินที่ถูกต้อง (มากกว่า 0 บาท)");
+          const data = loadOrCreateFile();
+
+          // ตรวจสอบยอดเงินของผู้ส่ง
+          if (!data[senderId] || data[senderId].balance < amount) {
+            pendingTransfers.delete(senderId); // ล้างสถานะการรอโอนเงิน
+            return bot.sendMessage(msg.chat.id, "❌ คุณมียอดเงินไม่พอที่จะโอน");
+          }
+
+          // สร้างบัญชีผู้รับเงินถ้ายังไม่มี
+          if (!data[transferData.receiverId]) {
+            data[transferData.receiverId] = {
+              balance: 0,
+              username: transferData.receiverName,
+            };
+          }
+
+          // ดำเนินการโอนเงิน
+          data[senderId].balance -= amount;
+          data[transferData.receiverId].balance += amount;
+
+          saveToFile(data);
+
+          // ล้างสถานะการรอโอนเงิน
+          pendingTransfers.delete(senderId);
+
+          // แจ้งเตือนผู้ส่งและผู้รับ
+          bot.sendMessage(
+            msg.chat.id,
+            `✅ คุณได้โอนเงิน ${amount.toFixed(2)} บาท ให้กับ @${transferData.receiverName || 'unknown'}`
+          );
+          bot.sendMessage(
+            transferData.receiverId,
+            `🎉 คุณได้รับเงิน ${amount.toFixed(2)} บาท จาก @${msg.from.username || msg.from.first_name}`
+          );
         }
-
-        if (!data[senderId] || data[senderId].balance < amount) {
-          return bot.sendMessage(msg.chat.id, "❌ คุณมียอดเงินไม่พอที่จะโอน");
-        }
-
-        // สร้างบัญชีผู้รับเงินถ้ายังไม่มี
-        if (!data[receiverId]) {
-          data[receiverId] = { balance: 0, username: receiverName };
-        }
-
-        // ดำเนินการโอนเงิน
-        data[senderId].balance -= amount;
-        data[receiverId].balance += amount;
-
-        saveToFile(data);
-
-        // แจ้งเตือนผู้ส่งและผู้รับ
-        bot.sendMessage(msg.chat.id, `✅ คุณได้โอนเงิน ${amount.toFixed(2)} บาท ให้กับ @${receiverName || "unknown"}`);
-        bot.sendMessage(receiverId, `🎉 คุณได้รับเงิน ${amount.toFixed(2)} บาท จาก @${msg.from.username || msg.from.first_name}`);
       } catch (error) {
-        console.error("Error in /transfer command:", error.message);
+        console.error("Error in transfer process:", error.message);
         bot.sendMessage(msg.chat.id, "❌ เกิดข้อผิดพลาดในการโอนเงิน");
       }
     });
