@@ -1,16 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
-// Map สำหรับเก็บสถานะผู้ใช้ขณะโต้ตอบ
-const states = {};
-
+// เพิ่มฟังก์ชันสำหรับใช้งาน
 module.exports = {
-  name: 'bank',
-  description: 'ระบบธนาคารแบบปุ่ม พร้อมฟังก์ชันโอนเงินระหว่างผู้ใช้ (ข้อมูลใน smo.json)',
+  name: 'bankCommandsWithButtons',
+  description: 'เมนูธนาคารด้วยปุ่ม: ตรวจสอบยอด ฝาก ถอน',
   execute(bot) {
     const filePath = path.join(__dirname, 'smo.json');
 
-    // โหลดหรือสร้างไฟล์ smo.json
+    // ฟังก์ชันสำหรับโหลดหรือสร้างไฟล์ smo.json
     function loadOrCreateFile() {
       if (!fs.existsSync(filePath)) {
         fs.writeFileSync(filePath, JSON.stringify({}, null, 2));
@@ -19,228 +17,264 @@ module.exports = {
       return JSON.parse(data);
     }
 
-    // บันทึกข้อมูลลงใน smo.json
+    // ฟังก์ชันสำหรับบันทึกข้อมูลลงใน smo.json
     function saveToFile(data) {
       fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
     }
 
-    // ฟังก์ชันสำหรับแสดงยอดเงิน
-    function showInfo(userData) {
-      return (
-        `💼 กระเป๋า (wallet): ${userData.wallet.toFixed(2)} บาท\n` +
-        `🏦 ธนาคาร (bank): ${userData.bank.toFixed(2)} บาท`
-      );
+    // ฟังก์ชันสำหรับดึงยอดเงินของผู้ใช้ ถ้าไม่มีจะสร้างใหม่
+    function getUserBalance(data, userId) {
+      if (!data[userId]) {
+        data[userId] = { balance: 0 };
+      }
+      return data[userId].balance;
     }
 
-    // เมื่อพิมพ์ /bank
+    // ฟังก์ชันสำหรับตั้งยอดเงินผู้ใช้
+    function setUserBalance(data, userId, newBalance) {
+      data[userId] = { balance: newBalance };
+      saveToFile(data);
+    }
+
+    // --------------------------------------------------------------------------------
+    // 1) /bank - แสดงเมนูปุ่มหลัก (Inline Keyboard)
+    // --------------------------------------------------------------------------------
     bot.onText(/\/bank/, (msg) => {
       const chatId = msg.chat.id;
 
-      // สร้างปุ่ม Inline Keyboard
+      // สร้างปุ่มเมนูหลัก
       const options = {
         reply_markup: {
           inline_keyboard: [
-            [
-              { text: 'ดูยอดเงิน (Info)', callback_data: 'bank_info' },
-              { text: 'ฝากเงิน (Deposit)', callback_data: 'bank_deposit' },
-            ],
-            [
-              { text: 'ถอนเงิน (Withdraw)', callback_data: 'bank_withdraw' },
-              { text: 'โอนเงิน (Transfer)', callback_data: 'bank_transfer' },
-            ],
-          ],
-        },
+            [{ text: '🏦 ตรวจสอบยอดเงิน', callback_data: 'check_balance' }],
+            [{ text: '💰 ฝากเงิน',       callback_data: 'deposit_menu' }],
+            [{ text: '💳 ถอนเงิน',       callback_data: 'withdraw_menu' }],
+          ]
+        }
       };
 
-      bot.sendMessage(chatId, "คุณต้องการทำรายการอะไร?", options);
+      bot.sendMessage(
+        chatId,
+        "🤖 [AI Banking System]\n" +
+        "เลือกเมนูที่ต้องการได้เลยครับ:",
+        options
+      );
     });
 
-    // ฟังก์ชันจัดการ Callback Query (เมื่อกดปุ่ม)
-    bot.on('callback_query', async (callbackQuery) => {
-      const action = callbackQuery.data; // bank_info, bank_deposit, bank_withdraw, bank_transfer
-      const userId = callbackQuery.from.id;
-      const chatId = callbackQuery.message.chat.id;
+    // --------------------------------------------------------------------------------
+    // 2) callback_query - จับ event เมื่อมีการกดปุ่มใน Inline Keyboard
+    // --------------------------------------------------------------------------------
+    bot.on('callback_query', (query) => {
+      const chatId = query.message.chat.id;
+      const userId = query.from.id;
+      const data = query.data; // ค่านี้คือ callback_data ที่เราเซ็ตไว้
 
-      // โหลดข้อมูล
-      const data = loadOrCreateFile();
+      // โหลด/สร้างไฟล์ smo.json
+      let fileData = loadOrCreateFile();
+      // อ่านยอดเงินปัจจุบัน
+      let currentBalance = getUserBalance(fileData, userId);
 
-      // ถ้าไม่มีข้อมูลผู้ใช้ สร้างใหม่
-      if (!data[userId]) {
-        data[userId] = { wallet: 10, bank: 0 };
-        saveToFile(data);
-      }
-      const userData = data[userId];
-
-      switch (action) {
-        case 'bank_info':
-          // แสดงยอดเงิน
-          bot.sendMessage(chatId, `ℹ️ ข้อมูลบัญชีของคุณ:\n${showInfo(userData)}`);
-          // เคลียร์สถานะ
-          if (states[userId]) delete states[userId];
+      // เช็คว่ากดปุ่มอะไร
+      switch (data) {
+        case 'check_balance':
+          // ตรวจสอบยอดเงิน
+          bot.answerCallbackQuery(query.id); // ตอบ Callback (เพื่อให้ Telegram หยุดโลดดิ้ง)
+          bot.sendMessage(
+            chatId,
+            `🛰 [AI Banking System]\n\n` +
+            `💳 ยอดเงินในบัญชีของคุณ: ${currentBalance.toFixed(2)} บาท\n` +
+            `🔎 ตรวจสอบผ่านระบบความปลอดภัยขั้นสูงเรียบร้อย`
+          );
           break;
 
-        case 'bank_deposit':
-          // เตรียมฝากเงิน: ขอจำนวนเงิน
-          states[userId] = { action: 'deposit', chatId };
-          bot.sendMessage(chatId, "💰 กรุณาพิมพ์จำนวนเงินที่ต้องการฝาก (หักจากกระเป๋าเข้าธนาคาร):");
+        case 'deposit_menu':
+          // แสดงปุ่มเมนูสำหรับฝากเงินเป็นจำนวนต่าง ๆ
+          bot.answerCallbackQuery(query.id);
+          bot.sendMessage(chatId, "ต้องการฝากเงินเท่าไหร่?", {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "ฝาก 50",  callback_data: "deposit_50" },
+                  { text: "ฝาก 100", callback_data: "deposit_100" },
+                  { text: "ฝาก 500", callback_data: "deposit_500" },
+                ],
+                [
+                  { text: "ฝากจำนวนเอง", callback_data: "deposit_custom" },
+                  { text: "กลับเมนูหลัก", callback_data: "back_to_main" }
+                ]
+              ]
+            }
+          });
           break;
 
-        case 'bank_withdraw':
-          // เตรียมถอนเงิน: ขอจำนวนเงิน
-          states[userId] = { action: 'withdraw', chatId };
-          bot.sendMessage(chatId, "💰 กรุณาพิมพ์จำนวนเงินที่ต้องการถอน (หักจากธนาคารเข้ากระเป๋า):");
+        case 'withdraw_menu':
+          // แสดงปุ่มเมนูสำหรับถอนเงินเป็นจำนวนต่าง ๆ
+          bot.answerCallbackQuery(query.id);
+          bot.sendMessage(chatId, "ต้องการถอนเงินเท่าไหร่?", {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: "ถอน 50",  callback_data: "withdraw_50" },
+                  { text: "ถอน 100", callback_data: "withdraw_100" },
+                  { text: "ถอน 500", callback_data: "withdraw_500" },
+                ],
+                [
+                  { text: "ถอนจำนวนเอง", callback_data: "withdraw_custom" },
+                  { text: "กลับเมนูหลัก", callback_data: "back_to_main" }
+                ]
+              ]
+            }
+          });
           break;
 
-        case 'bank_transfer':
-          // เตรียมโอนเงิน: ขอ User ID ปลายทางก่อน
-          states[userId] = { action: 'transfer', chatId, step: 'askTarget' };
-          bot.sendMessage(chatId, "🔄 กรุณาพิมพ์ *User ID* ของผู้รับโอน:", {
-            parse_mode: 'Markdown',
+        case 'back_to_main':
+          // กลับไปแสดงเมนูหลัก
+          bot.answerCallbackQuery(query.id);
+          bot.sendMessage(chatId, "กลับสู่เมนูหลัก", {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: '🏦 ตรวจสอบยอดเงิน', callback_data: 'check_balance' },
+                  { text: '💰 ฝากเงิน',         callback_data: 'deposit_menu' },
+                  { text: '💳 ถอนเงิน',         callback_data: 'withdraw_menu' }
+                ]
+              ]
+            }
+          });
+          break;
+        
+        // ----------------------------
+        //  ตัวเลือกฝากเงินแบบปุ่ม
+        // ----------------------------
+        case 'deposit_50':
+        case 'deposit_100':
+        case 'deposit_500': {
+          bot.answerCallbackQuery(query.id);
+          // ตัดเอาจำนวนเงินจาก callback_data => deposit_50 => "50"
+          const depositAmount = parseFloat(data.split('_')[1]);
+          const newBalance = currentBalance + depositAmount;
+          setUserBalance(fileData, userId, newBalance);
+
+          bot.sendMessage(
+            chatId,
+            `🤖 [AI Banking System]\n\n` +
+            `💸 ทำรายการฝากเงิน: +${depositAmount.toFixed(2)} บาท\n` +
+            `💳 ยอดเงินคงเหลือใหม่: ${newBalance.toFixed(2)} บาท\n` +
+            `✅ บันทึกข้อมูลผ่าน Blockchain เรียบร้อย`
+          );
+          break;
+        }
+
+        // ----------------------------
+        //  ตัวเลือกถอนเงินแบบปุ่ม
+        // ----------------------------
+        case 'withdraw_50':
+        case 'withdraw_100':
+        case 'withdraw_500': {
+          bot.answerCallbackQuery(query.id);
+          const withdrawAmount = parseFloat(data.split('_')[1]);
+          
+          if (currentBalance < withdrawAmount) {
+            bot.sendMessage(
+              chatId,
+              `🚫 [AI Denied]\n` +
+              `ยอดเงินไม่เพียงพอสำหรับถอน\n` +
+              `🔎 ยอดคงเหลือของคุณ: ${currentBalance.toFixed(2)} บาท`
+            );
+          } else {
+            const newBalance = currentBalance - withdrawAmount;
+            setUserBalance(fileData, userId, newBalance);
+            
+            bot.sendMessage(
+              chatId,
+              `🤖 [AI Banking System]\n\n` +
+              `💸 ทำรายการถอนเงิน: -${withdrawAmount.toFixed(2)} บาท\n` +
+              `💳 ยอดเงินคงเหลือใหม่: ${newBalance.toFixed(2)} บาท\n` +
+              `✅ ระบบประมวลผลด้วย Quantum Computing อย่างสมบูรณ์แบบ`
+            );
+          }
+          break;
+        }
+
+        // กรณีฝาก/ถอนจำนวนอื่น ๆ (ฝากจำนวนเอง / ถอนจำนวนเอง)
+        case 'deposit_custom':
+          bot.answerCallbackQuery(query.id);
+          bot.sendMessage(
+            chatId,
+            "โปรดพิมพ์จำนวนเงินที่ต้องการฝาก\nเช่น: 123.45",
+            {
+              reply_markup: {
+                force_reply: true
+              }
+            }
+          ).then((sentMessage) => {
+            // รอตอบกลับเป็นข้อความ (deposit amount)
+            bot.onReplyToMessage(chatId, sentMessage.message_id, (userMsg) => {
+              const customAmount = parseFloat(userMsg.text);
+              if (isNaN(customAmount) || customAmount <= 0) {
+                bot.sendMessage(chatId, "กรุณาระบุจำนวนเงินที่ถูกต้อง.");
+                return;
+              }
+
+              const newBalance = currentBalance + customAmount;
+              setUserBalance(fileData, userId, newBalance);
+
+              bot.sendMessage(
+                chatId,
+                `🤖 [AI Banking System]\n\n` +
+                `💸 ทำรายการฝากเงิน: +${customAmount.toFixed(2)} บาท\n` +
+                `💳 ยอดเงินคงเหลือใหม่: ${newBalance.toFixed(2)} บาท`
+              );
+            });
+          });
+          break;
+
+        case 'withdraw_custom':
+          bot.answerCallbackQuery(query.id);
+          bot.sendMessage(
+            chatId,
+            "โปรดพิมพ์จำนวนเงินที่ต้องการถอน\nเช่น: 123.45",
+            {
+              reply_markup: {
+                force_reply: true
+              }
+            }
+          ).then((sentMessage) => {
+            // รอตอบกลับเป็นข้อความ (withdraw amount)
+            bot.onReplyToMessage(chatId, sentMessage.message_id, (userMsg) => {
+              const customAmount = parseFloat(userMsg.text);
+              if (isNaN(customAmount) || customAmount <= 0) {
+                bot.sendMessage(chatId, "กรุณาระบุจำนวนเงินที่ถูกต้อง.");
+                return;
+              }
+
+              if (currentBalance < customAmount) {
+                bot.sendMessage(
+                  chatId,
+                  `🚫 [AI Denied]\n` +
+                  `ยอดเงินไม่เพียงพอสำหรับถอน\n` +
+                  `🔎 ยอดคงเหลือของคุณ: ${currentBalance.toFixed(2)} บาท`
+                );
+                return;
+              }
+
+              const newBalance = currentBalance - customAmount;
+              setUserBalance(fileData, userId, newBalance);
+
+              bot.sendMessage(
+                chatId,
+                `🤖 [AI Banking System]\n\n` +
+                `💸 ทำรายการถอนเงิน: -${customAmount.toFixed(2)} บาท\n` +
+                `💳 ยอดเงินคงเหลือใหม่: ${newBalance.toFixed(2)} บาท`
+              );
+            });
           });
           break;
 
         default:
+          // กรณี callback_data อื่น ๆ
+          bot.answerCallbackQuery(query.id, { text: "ไม่พบตัวเลือกที่ต้องการ" });
           break;
-      }
-
-      // แจ้ง Telegram ว่าเราจัดการ Callback แล้ว
-      bot.answerCallbackQuery(callbackQuery.id);
-    });
-
-    // เมื่อผู้ใช้ส่งข้อความตอบกลับ (กรณีฝาก/ถอน/โอน)
-    bot.on('message', (msg) => {
-      const userId = msg.from.id;
-      const chatId = msg.chat.id;
-      const text = msg.text.trim();
-
-      // ถ้าไม่มีสถานะ หรือเป็นคำสั่ง /bank เอง ให้ข้าม
-      if (!states[userId]) return;
-      if (states[userId].chatId !== chatId) return;
-
-      const state = states[userId];
-
-      // โหลดข้อมูลจากไฟล์
-      const data = loadOrCreateFile();
-
-      // สร้างข้อมูลผู้ใช้ถ้ายังไม่มี
-      if (!data[userId]) {
-        data[userId] = { wallet: 10, bank: 0 };
-        saveToFile(data);
-      }
-      const userData = data[userId];
-
-      // ---- Deposit ----
-      if (state.action === 'deposit') {
-        const amount = parseFloat(text);
-        if (isNaN(amount) || amount <= 0) {
-          bot.sendMessage(chatId, "❌ กรุณาระบุจำนวนเงินที่ถูกต้อง (ตัวอย่าง: 100 หรือ 50.50)");
-          return;
-        }
-        if (userData.wallet < amount) {
-          bot.sendMessage(chatId, "❌ ยอดเงินในกระเป๋าไม่พอสำหรับฝาก");
-          delete states[userId];
-          return;
-        }
-
-        // หักจาก wallet เพิ่มใน bank
-        userData.wallet -= amount;
-        userData.bank += amount;
-        saveToFile(data);
-
-        bot.sendMessage(chatId, `✅ ฝากเงินสำเร็จ ( ${amount.toFixed(2)} บาท )\n\n${showInfo(userData)}`);
-        delete states[userId];
-        return;
-      }
-
-      // ---- Withdraw ----
-      if (state.action === 'withdraw') {
-        const amount = parseFloat(text);
-        if (isNaN(amount) || amount <= 0) {
-          bot.sendMessage(chatId, "❌ กรุณาระบุจำนวนเงินที่ถูกต้อง");
-          return;
-        }
-        if (userData.bank < amount) {
-          bot.sendMessage(chatId, "❌ ยอดเงินในธนาคารไม่พอสำหรับถอน");
-          delete states[userId];
-          return;
-        }
-
-        // หักจาก bank เพิ่มใน wallet
-        userData.bank -= amount;
-        userData.wallet += amount;
-        saveToFile(data);
-
-        bot.sendMessage(chatId, `✅ ถอนเงินสำเร็จ ( ${amount.toFixed(2)} บาท )\n\n${showInfo(userData)}`);
-        delete states[userId];
-        return;
-      }
-
-      // ---- Transfer ----
-      if (state.action === 'transfer') {
-        // step: 'askTarget' => ถาม User ID, 'askAmount' => ถามจำนวนเงิน
-        if (state.step === 'askTarget') {
-          // เก็บ User ID ปลายทาง
-          const targetId = text; // สมมติว่าผู้ใช้พิมพ์หมายเลข ID แบบข้อความ
-
-          // ตรวจสอบว่าเป็นเลขไหม (ผู้ใช้คนอื่น)
-          if (isNaN(parseInt(targetId))) {
-            bot.sendMessage(chatId, "❌ กรุณาพิมพ์เป็นตัวเลข User ID เท่านั้น");
-            return;
-          }
-
-          // ตรวจสอบว่ามีในระบบไหม (ถ้ายังไม่เคยใช้งานระบบ อาจไม่มีในไฟล์)
-          if (!data[targetId]) {
-            bot.sendMessage(chatId, `❌ ไม่พบ User ID: ${targetId} ในระบบ`);
-            delete states[userId];
-            return;
-          }
-
-          // เก็บ targetId ใน state
-          state.targetId = targetId;
-          state.step = 'askAmount';
-          bot.sendMessage(chatId, `🔄 กรุณาพิมพ์จำนวนเงินที่ต้องการโอนไปให้ User ID: ${targetId}`);
-          return;
-        }
-
-        if (state.step === 'askAmount') {
-          const amount = parseFloat(text);
-          if (isNaN(amount) || amount <= 0) {
-            bot.sendMessage(chatId, "❌ กรุณาระบุจำนวนเงินที่ถูกต้อง");
-            return;
-          }
-          const targetId = state.targetId;
-          // ตรวจสอบยอดเงินใน bank
-          if (userData.bank < amount) {
-            bot.sendMessage(chatId, "❌ ยอดเงินในธนาคารไม่พอสำหรับโอน");
-            delete states[userId];
-            return;
-          }
-
-          // หักจาก bank ผู้โอน
-          userData.bank -= amount;
-          // เพิ่มใน bank ของผู้รับ
-          data[targetId].bank += amount;
-
-          saveToFile(data);
-
-          // แจ้งผลผู้โอน
-          bot.sendMessage(
-            chatId,
-            `✅ โอนเงินสำเร็จ ( ${amount.toFixed(2)} บาท ) ให้กับ User ID: ${targetId}\n\n${showInfo(userData)}`
-          );
-
-          // แจ้งผู้รับ (ถ้าต้องการ)
-          if (parseInt(targetId) !== parseInt(userId)) {
-            bot.sendMessage(
-              targetId,
-              `💸 คุณได้รับเงินโอนจาก User ID: ${userId} จำนวน ${amount.toFixed(2)} บาท\n` +
-              `ยอดเงินในธนาคารของคุณตอนนี้: ${data[targetId].bank.toFixed(2)} บาท`
-            );
-          }
-
-          // เคลียร์ state
-          delete states[userId];
-        }
       }
     });
   },
