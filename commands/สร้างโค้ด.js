@@ -3,7 +3,7 @@ const { v4: uuidv4 } = require('uuid');
 
 module.exports = {
   name: 'createv2ray',
-  description: 'สร้างโค้ด V2Ray พร้อมล็อกอินและสุ่มข้อมูล UUID, Email, GB, วันหมดอายุ',
+  description: 'สร้างโค้ด V2Ray พร้อมตรวจสอบข้อผิดพลาด URL',
   execute(bot) {
     // ฟังก์ชันสุ่มอีเมล
     function generateRandomEmail() {
@@ -54,7 +54,7 @@ module.exports = {
         const createResponse = await axios.post(
           'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient',
           {
-            id: 3,
+            id: 5,
             settings: JSON.stringify({
               clients: [
                 {
@@ -93,8 +93,15 @@ module.exports = {
           bot.sendMessage(chatId, `❌ ไม่สามารถสร้างโค้ด V2Ray ได้: ${createResponse.data.msg}`);
         }
       } catch (error) {
-        console.error('❌ เกิดข้อผิดพลาด:', error.message);
-        bot.sendMessage(chatId, `❌ เกิดข้อผิดพลาด: ${error.message}`);
+        if (error.response && error.response.status === 404) {
+          bot.sendMessage(
+            chatId,
+            `❌ ไม่พบ API หรือ URL ผิดพลาด (404):\nกรุณาตรวจสอบ URL หรือเซิร์ฟเวอร์`,
+            { parse_mode: 'Markdown' }
+          );
+        } else {
+          bot.sendMessage(chatId, `❌ เกิดข้อผิดพลาด: ${error.message}`);
+        }
       }
     }
 
