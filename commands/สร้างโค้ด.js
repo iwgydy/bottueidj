@@ -80,7 +80,7 @@ module.exports = {
 
         // 4) เรียกใช้ API เพื่อสร้างโค้ด V2Ray
         const createResponse = await axios.post(
-          'http://kqodgqtdka.vipv2boxth.xyz:2053/xX3d9tmz5pKEsfz/panel/api/inbounds/addClient',
+          ' http://103.253.73.57:2053/xX3d9tmz5pKEsfz/panel/api/inbounds/addClient',
           payload,
           {
             headers: {
