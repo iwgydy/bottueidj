@@ -54,7 +54,7 @@ module.exports = {
         const createResponse = await axios.post(
           'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient',
           {
-            id: 5,
+            id: 2,
             settings: JSON.stringify({
               clients: [
                 {
