@@ -35,10 +35,10 @@ module.exports = {
       try {
         // 1) ล็อกอิน
         const loginResponse = await axios.post(
-          'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/login',
+          'http://kqodgqtdka.vipv2boxth.xyz:2053/xX3d9tmz5pKEsfz/login',
           {
-            username: 'WYEXPRkCKL',
-            password: 'nfEpAlava1',
+            username: 'WrVa7Fjxj0',
+            password: 'NsmNXw24lu',
           }
         );
 
@@ -59,7 +59,7 @@ module.exports = {
 
         // 3) เตรียม JSON สำหรับส่งไปยัง API
         const payload = {
-          id: 3,
+          id: 1,
           settings: JSON.stringify({
             clients: [
               {
@@ -80,7 +80,7 @@ module.exports = {
 
         // 4) เรียกใช้ API เพื่อสร้างโค้ด V2Ray
         const createResponse = await axios.post(
-          'http://creators.trueid.net.vipv2boxth.xyz:2053/13RpDPnN59mBvxd/panel/api/inbounds/addClient',
+          'http://kqodgqtdka.vipv2boxth.xyz:2053/xX3d9tmz5pKEsfz/panel/api/inbounds/addClient',
           payload,
           {
             headers: {
